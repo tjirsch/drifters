@@ -1,14 +1,14 @@
 [package]
-name = "drifter"
+name = "drifters"
 version = "0.1.0"
 edition = "2024"
 description = "Config file synchronization across machines"
 license = "MIT"
-repository = "https://github.com/tjirsch/drifter"
+repository = "https://github.com/tjirsch/drifters"
 # documentation = "https://docs.drifter.rs"
 # homepage = "https://drifter.rs"
 keywords = ["config", "synchronization", "sync", "config-sync"]
-authors = ["tjirsch@746a.de"]
+authors = ["Thomas Jirsch"]
 categories = ["productivity", "utilities"]
 
 

@@ -9,7 +9,7 @@ repository = "https://github.com/tjirsch/drifters"
 # homepage = "https://drifter.rs"
 keywords = ["config", "synchronization", "sync", "config-sync"]
 authors = ["Thomas Jirsch"]
-categories = ["productivity", "utilities"]
+categories = ["command-line-utilities", "config"]
 
 
 [dependencies]

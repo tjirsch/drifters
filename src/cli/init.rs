@@ -1,6 +1,6 @@
 use crate::config::{LocalConfig, MachineRegistry, SyncRules};
 use crate::error::{DriftersError, Result};
-use crate::git::{clone_repo, commit_and_push, confirm_operation, init_repo};
+use crate::git::{clone_repo, commit_and_push, init_repo};
 use std::io::{self, Write};
 use std::path::PathBuf;
 

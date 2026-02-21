@@ -30,26 +30,14 @@ pub enum DriftersError {
     #[error("HTTP request error: {0}")]
     Reqwest(#[from] reqwest::Error),
 
-    #[error("Merge conflict in file: {0}")]
-    MergeConflict(PathBuf),
-
-    #[error("Machine not registered: {0}")]
-    MachineNotRegistered(String),
-
     #[error("App not found: {0}")]
     AppNotFound(String),
 
     #[error("Repository not initialized. Run 'drifters init <repo-url>' first")]
     RepoNotInitialized,
 
-    #[error("Empty file detected: {0}. This might overwrite existing configs.")]
-    EmptyFile(PathBuf),
-
     #[error("User cancelled operation")]
     UserCancelled,
-
-    #[error("Invalid sync mode: {0}")]
-    InvalidSyncMode(String),
 }
 
 pub type Result<T> = std::result::Result<T, DriftersError>;

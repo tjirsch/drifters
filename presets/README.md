@@ -4,91 +4,125 @@ This directory contains pre-configured app definitions for popular applications.
 
 ## Available Presets
 
+- **[cursor.toml](cursor.toml)** - Cursor IDE (AI-powered code editor built on VS Code)
+- **[vscode.toml](vscode.toml)** - Visual Studio Code (popular code editor)
+- **[windsurf.toml](windsurf.toml)** - Windsurf IDE (Codeium's agentic code editor)
 - **[zed.toml](zed.toml)** - Zed Editor (modern code editor)
 
 ## How to Use Presets
 
-### Step 1: Clone Your Config Repo
+### Recommended Method: Import Command
 
-Since Drifters uses ephemeral repositories, clone your config repo separately for editing:
+**Step 1: Import the preset**
 
 ```bash
-# Clone your config repo to a permanent location
+# Import Cursor preset
+drifters import app cursor --file presets/cursor.toml
+
+# Or VS Code
+drifters import app vscode --file presets/vscode.toml
+
+# Or Windsurf
+drifters import app windsurf --file presets/windsurf.toml
+
+# This automatically:
+# 1. Adds the app to your sync-rules.toml
+# 2. Commits and pushes to your repo
+# 3. Makes it available to all machines
+```
+
+**Step 2: Apply on this machine**
+
+```bash
+# Preview what will change
+drifters merge --app vscode --dry-run
+
+# Apply the configuration
+drifters merge --app vscode
+```
+
+**Step 3: Apply on other machines**
+
+```bash
+# On each other machine:
+drifters pull              # Get updated sync-rules.toml
+drifters merge --app vscode  # Apply the new app config
+```
+
+### Alternative: Manual Method
+
+If you prefer manual control:
+
+**Step 1: Clone your config repo**
+
+```bash
+# Clone to a permanent location for editing
 git clone git@github.com:username/my-configs.git ~/my-drifters-config
 ```
 
-### Step 2: Add Preset to sync-rules.toml
-
-**Option A: Append entire preset**
+**Step 2: Add preset to sync-rules.toml**
 
 ```bash
 # View the preset first
-cat presets/zed.toml
+cat presets/vscode.toml
 
 # Append to your sync-rules.toml
-cat presets/zed.toml >> ~/my-drifters-config/.drifters/sync-rules.toml
-```
+cat presets/vscode.toml >> ~/my-drifters-config/.drifters/sync-rules.toml
 
-**Option B: Copy specific sections**
-
-```bash
-# Edit your sync-rules.toml
+# Or manually edit
 vim ~/my-drifters-config/.drifters/sync-rules.toml
-
-# Manually copy the [apps.zed] section from presets/zed.toml
-# Customize as needed (add machine overrides, change paths, etc.)
+# Copy the [apps.vscode] section and customize
 ```
 
-**Option C: Use during `drifters add` (Limited)**
-
-```bash
-drifters add zed
-# The command will prompt for file patterns
-# Enter them based on the preset
-# Note: This doesn't support OS variants or machine overrides
-```
-
-### Step 3: Commit and Push
+**Step 3: Commit and push**
 
 ```bash
 cd ~/my-drifters-config
 git add .drifters/sync-rules.toml
-git commit -m "Add Zed app from preset"
+git commit -m "Add VS Code preset"
 git push
 ```
 
-### Step 4: Apply on All Machines
+**Step 4: Apply on all machines**
 
 ```bash
-# On each machine, re-merge with the new rules
-drifters merge --dry-run    # Preview changes
-drifters merge              # Apply
+drifters merge --app vscode
 ```
 
-### Complete Example
+### Quick Example (Import Method)
+
+```bash
+# 1. Import the preset
+drifters import app vscode --file ~/projects/drifters/presets/vscode.toml
+
+# 2. Apply on this machine
+drifters merge --app vscode
+
+# 3. On other machines:
+drifters pull
+drifters merge --app vscode
+```
+
+### Quick Example (Manual Method)
 
 ```bash
 # 1. Clone your config repo
 git clone git@github.com:username/my-configs.git ~/my-drifters-config
 
-# 2. Add Zed preset
-cat ~/projects/drifters/presets/zed.toml >> ~/my-drifters-config/.drifters/sync-rules.toml
+# 2. Add preset
+cat ~/projects/drifters/presets/vscode.toml >> ~/my-drifters-config/.drifters/sync-rules.toml
 
-# 3. Customize (optional)
-vim ~/my-drifters-config/.drifters/sync-rules.toml
-# Add machine overrides, adjust paths, etc.
-
-# 4. Commit and push
+# 3. Commit and push
 cd ~/my-drifters-config
 git add .drifters/sync-rules.toml
-git commit -m "Add Zed editor config"
+git commit -m "Add VS Code config"
 git push
 
-# 5. Apply on this machine
-drifters merge --app zed
+# 4. Apply on this machine
+drifters merge --app vscode
 
-# 6. Apply on other machines
-# (run the same merge command on each)
+# 5. On other machines
+# (run the same merge command)
 ```
 
 ## Customizing Presets

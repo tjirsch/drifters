@@ -1,4 +1,4 @@
-use crate::config::sync_rules::{AppConfig, MachineOverride};
+use crate::config::sync_rules::AppConfig;
 use crate::error::Result;
 use std::path::PathBuf;
 
@@ -129,7 +129,6 @@ mod tests {
             exclude_macos: vec![],
             exclude_linux: vec![],
             exclude_windows: vec![],
-            sections: Default::default(),
             machines: Default::default(),
         };
 
@@ -149,7 +148,6 @@ mod tests {
             exclude_macos: vec![],
             exclude_linux: vec![],
             exclude_windows: vec![],
-            sections: Default::default(),
             machines: Default::default(),
         };
 

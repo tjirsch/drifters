@@ -8,6 +8,7 @@ pub mod import;
 pub mod init;
 pub mod list;
 pub mod merge;
+pub mod presets;
 pub mod pull;
 pub mod push;
 pub mod restore;

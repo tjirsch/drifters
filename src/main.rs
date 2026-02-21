@@ -45,8 +45,12 @@ enum Commands {
         /// Optional app name to pull (all if not specified)
         app_name: Option<String>,
     },
-    /// List all apps configured for sync
+    /// List all apps configured for sync (detailed)
     List,
+    /// List app names only
+    ListApps,
+    /// Print current sync-rules.toml
+    ListRules,
     /// Exclude a file from syncing on this machine
     Exclude {
         /// App name
@@ -78,15 +82,40 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Import app or rules from file
-    Import {
-        #[command(subcommand)]
-        target: ImportTarget,
+    /// Import app definition from file (defaults to <app>.toml in config repo)
+    ImportApp {
+        /// App name
+        app_name: String,
+        /// File to import from (optional, defaults to <app>.toml)
+        #[arg(long)]
+        file: Option<std::path::PathBuf>,
     },
-    /// Export app or rules to file
-    Export {
-        #[command(subcommand)]
-        target: ExportTarget,
+    /// Export app definition to file (defaults to <app>.toml in config repo)
+    ExportApp {
+        /// App name
+        app_name: String,
+        /// File to export to (optional, defaults to <app>.toml)
+        #[arg(long)]
+        file: Option<std::path::PathBuf>,
+    },
+    /// Import entire sync-rules.toml from file
+    ImportRules {
+        /// File to import from (optional, defaults to sync-rules.toml)
+        #[arg(long)]
+        file: Option<std::path::PathBuf>,
+    },
+    /// Export entire sync-rules.toml to file
+    ExportRules {
+        /// File to export to (optional, defaults to sync-rules.toml)
+        #[arg(long)]
+        file: Option<std::path::PathBuf>,
+    },
+    /// List available presets from GitHub repository
+    ListPresets,
+    /// Load preset from GitHub repository
+    LoadPreset {
+        /// Preset name (e.g., "zed", "vscode")
+        preset_name: String,
     },
     /// Show history of rules or app
     History {
@@ -105,42 +134,6 @@ enum Commands {
         /// Only check if an update is available; do not install
         #[arg(long)]
         check_only: bool,
-    },
-}
-
-#[derive(Subcommand)]
-enum ImportTarget {
-    /// Import app definition from file
-    App {
-        /// App name
-        app_name: String,
-        /// File to import from
-        #[arg(long)]
-        file: std::path::PathBuf,
-    },
-    /// Import entire rules file
-    Rules {
-        /// File to import from
-        #[arg(long)]
-        file: std::path::PathBuf,
-    },
-}
-
-#[derive(Subcommand)]
-enum ExportTarget {
-    /// Export app definition to file
-    App {
-        /// App name
-        app_name: String,
-        /// File to export to
-        #[arg(long)]
-        file: std::path::PathBuf,
-    },
-    /// Export entire rules file
-    Rules {
-        /// File to export to
-        #[arg(long)]
-        file: std::path::PathBuf,
     },
 }
 
@@ -223,6 +216,12 @@ fn main() -> Result<()> {
         Commands::List => {
             cli::list::list_apps()
         }
+        Commands::ListApps => {
+            cli::list::list_apps_simple()
+        }
+        Commands::ListRules => {
+            cli::list::list_rules()
+        }
         Commands::Exclude { app_name, filename } => {
             cli::exclude::exclude_file(app_name, filename)
         }
@@ -235,21 +234,23 @@ fn main() -> Result<()> {
         Commands::Merge { app_name, machine, os, dry_run } => {
             cli::merge::merge_command(app_name, machine, os, dry_run, cli.yolo)
         }
-        Commands::Import { target } => match target {
-            ImportTarget::App { app_name, file } => {
-                cli::import::import_app(app_name, file)
-            }
-            ImportTarget::Rules { file } => {
-                cli::import::import_rules(file)
-            }
+        Commands::ImportApp { app_name, file } => {
+            cli::import::import_app(app_name, file)
         }
-        Commands::Export { target } => match target {
-            ExportTarget::App { app_name, file } => {
-                cli::export::export_app(app_name, file)
-            }
-            ExportTarget::Rules { file } => {
-                cli::export::export_rules(file)
-            }
+        Commands::ExportApp { app_name, file } => {
+            cli::export::export_app(app_name, file)
+        }
+        Commands::ImportRules { file } => {
+            cli::import::import_rules(file)
+        }
+        Commands::ExportRules { file } => {
+            cli::export::export_rules(file)
+        }
+        Commands::ListPresets => {
+            cli::presets::list_presets()
+        }
+        Commands::LoadPreset { preset_name } => {
+            cli::presets::load_preset(preset_name)
         }
         Commands::History { target } => match target {
             HistoryTarget::Rules { limit, commit } => {

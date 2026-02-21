@@ -42,12 +42,6 @@ pub struct AppConfig {
     #[serde(rename = "exclude-windows", default)]
     pub exclude_windows: Vec<String>,
 
-    /// Per-file section specification (optional)
-    /// Key is filename, value is whether to force section processing
-    /// If not specified, sections are auto-detected
-    #[serde(default)]
-    pub sections: HashMap<String, bool>,
-
     /// Machine-specific overrides
     #[serde(default)]
     pub machines: HashMap<String, MachineOverride>,
@@ -93,10 +87,6 @@ impl SyncRules {
 
     pub fn add_app(&mut self, app_name: String, config: AppConfig) {
         self.apps.insert(app_name, config);
-    }
-
-    pub fn get_app(&self, app_name: &str) -> Option<&AppConfig> {
-        self.apps.get(app_name)
     }
 }
 

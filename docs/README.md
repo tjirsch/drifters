@@ -208,16 +208,6 @@ Benefits: Always fresh, no stale state.
 
 ## Advanced Topics
 
-### Custom Comment Syntax
-
-Drifters auto-detects comment syntax by file extension. To override:
-
-```toml
-[apps.myapp.sections]
-"custom.conf" = true   # Force section processing
-"data.json" = false    # Force full-file sync (ignore tags)
-```
-
 ### Multiple Exclude Sections
 
 You can have multiple exclude sections per file:

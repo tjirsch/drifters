@@ -1,4 +1,4 @@
-use crate::config::{expand_tilde, resolve_fileset, LocalConfig, SyncRules};
+use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
 use crate::git::{confirm_operation, EphemeralRepoGuard};
 use crate::merge::intelligent_merge;
@@ -96,51 +96,29 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
             let final_content = if local_path.exists() {
                 let local_content = fs::read_to_string(&local_path)?;
 
-                // Check if we should process sections
-                let should_process_sections = should_process_sections(app_config, filename);
+                // Merge: preserve local exclude sections, update everything else
+                let comment = detect_comment_syntax(filename);
+                let merged_with_local = merge_synced_content(
+                    &local_content,
+                    &merged_content,
+                    comment,
+                )?;
 
-                if should_process_sections {
-                    // Merge: preserve local exclude sections, update everything else
-                    let comment = detect_comment_syntax(filename);
-                    let merged_with_local = merge_synced_content(
-                        &local_content,
-                        &merged_content,
-                        comment,
-                    )?;
-
-                    if merged_with_local == local_content {
-                        log::debug!("{} is up to date", filename);
-                        None
-                    } else if !yolo {
-                        // Show diff and ask for confirmation
-                        println!("\n  Changes in {}:", filename);
-                        show_simple_diff(&local_content, &merged_with_local);
-                        let msg = format!("Apply changes to {}?", filename);
-                        if confirm_operation(&msg, true)? {
-                            Some(merged_with_local)
-                        } else {
-                            None
-                        }
-                    } else {
+                if merged_with_local == local_content {
+                    log::debug!("{} is up to date", filename);
+                    None
+                } else if !yolo {
+                    // Show diff and ask for confirmation
+                    println!("\n  Changes in {}:", filename);
+                    show_simple_diff(&local_content, &merged_with_local);
+                    let msg = format!("Apply changes to {}?", filename);
+                    if confirm_operation(&msg, true)? {
                         Some(merged_with_local)
+                    } else {
+                        None
                     }
                 } else {
-                    // Full file sync (sections disabled)
-                    if local_content == merged_content {
-                        log::debug!("{} is up to date", filename);
-                        None
-                    } else if !yolo {
-                        println!("\n  Changes in {}:", filename);
-                        show_simple_diff(&local_content, &merged_content);
-                        let msg = format!("Overwrite local {} with merged version?", filename);
-                        if confirm_operation(&msg, true)? {
-                            Some(merged_content)
-                        } else {
-                            None
-                        }
-                    } else {
-                        Some(merged_content)
-                    }
+                    Some(merged_with_local)
                 }
             } else {
                 // File doesn't exist locally - create it
@@ -219,17 +197,6 @@ fn collect_machine_versions(
     }
 
     Ok(versions)
-}
-
-/// Check if sections should be processed for this file
-fn should_process_sections(app_config: &crate::config::AppConfig, filename: &str) -> bool {
-    // Check if explicitly specified
-    if let Some(&enabled) = app_config.sections.get(filename) {
-        return enabled;
-    }
-
-    // Default: Always scan for tags (auto-detection)
-    true
 }
 
 /// Show a simple diff between two strings

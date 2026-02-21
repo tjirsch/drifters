@@ -1,0 +1,86 @@
+# Windsurf IDE Configuration Preset
+#
+# Windsurf is Codeium's AI-powered code editor with agentic coding capabilities.
+# This preset syncs Windsurf configuration and rules.
+#
+# What gets synced:
+# - Windsurf user configuration from .codeium/windsurf/
+# - User settings and preferences
+# - Custom rules and configurations
+#
+# What gets excluded:
+# - Cache and temporary files
+# - Logs and debug data
+# - Session-specific data
+# - Workspace-specific rules (kept local per project)
+#
+# Note: Windsurf uses the .codeium directory structure.
+# Workspace-specific rules in .windsurf/rules are intentionally excluded
+# as they're project-specific and typically committed to the project repo.
+#
+# Usage:
+#   drifters import app windsurf --file presets/windsurf.toml
+#   drifters push windsurf
+
+[apps.windsurf]
+# Cross-platform paths (Windsurf uses consistent paths across OS)
+include = [
+    "~/.codeium/windsurf/User/settings.json",
+    "~/.codeium/windsurf/User/keybindings.json",
+    "~/.codeium/windsurf/User/snippets/**/*.json",
+    "~/.codeium/windsurf/User/snippets/**/*.code-snippets",
+]
+
+exclude = [
+    # Cache and temporary files
+    "~/.codeium/windsurf/Cache/**",
+    "~/.codeium/windsurf/GPUCache/**",
+    "~/.codeium/windsurf/CachedData/**",
+    "~/.codeium/windsurf/CachedExtensions/**",
+
+    # Logs and debug data
+    "~/.codeium/windsurf/logs/**",
+    "~/.codeium/windsurf/User/logs/**",
+
+    # Workspace and session data
+    "~/.codeium/windsurf/workspaceStorage/**",
+    "~/.codeium/windsurf/User/workspaceStorage/**",
+    "~/.codeium/windsurf/User/History/**",
+    "~/.codeium/windsurf/User/Backups/**",
+
+    # Extension storage
+    "~/.codeium/windsurf/globalStorage/**",
+    "~/.codeium/windsurf/User/globalStorage/**",
+
+    # Workspace-specific rules (kept in project repos)
+    "**/.windsurf/rules/**",
+
+    # Machine-specific files
+    "~/.codeium/windsurf/machineid",
+    "~/.codeium/windsurf/storage.json",
+]
+
+# macOS-specific additions (if any)
+include-macos = [
+    # Add macOS-specific Windsurf paths if needed
+]
+
+# Linux-specific additions (if any)
+include-linux = [
+    # Add Linux-specific Windsurf paths if needed
+]
+
+# Windows-specific additions (if any)
+include-windows = [
+    # Add Windows-specific Windsurf paths if needed
+]
+
+# Example machine-specific overrides:
+# Uncomment and customize for your machines
+
+# [apps.windsurf.machines.laptop]
+# # Different keybindings on laptop
+# exclude = ["**/keybindings.json"]
+
+# [apps.windsurf.machines.desktop]
+# # Sync everything on desktop

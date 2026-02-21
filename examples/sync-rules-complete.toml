@@ -84,13 +84,6 @@ include = [
     "~/.profile",
 ]
 
-# Optional: Control section processing per file
-# By default, ALL files are scanned for section tags
-[apps.shell.sections]
-".zshrc" = true      # Scan for drifters::exclude tags (default)
-".bashrc" = true
-".profile" = false   # Force full-file sync, ignore any tags
-
 # Use section tags in the actual files:
 # # ~/.zshrc
 # export EDITOR="nvim"
@@ -188,10 +181,6 @@ include = [
     "~/.tmux/work.conf",
 ]
 
-# Force full-file sync for main config (no section tags)
-[apps.tmux.sections]
-".tmux.conf" = false
-
 # =============================================================================
 # Tips for Writing Your Own
 # =============================================================================
@@ -209,22 +198,22 @@ include = [
 # =============================================================================
 
 # Exact match
-include = ["~/.gitconfig"]
+# include = ["~/.gitconfig"]
 
 # All files in directory (non-recursive)
-include = ["~/.config/app/*"]
+# include = ["~/.config/app/*"]
 
 # All files recursively
-include = ["~/.config/app/**/*"]
+# include = ["~/.config/app/**/*"]
 
 # All JSON files recursively
-include = ["~/.config/app/**/*.json"]
+# include = ["~/.config/app/**/*.json"]
 
 # Exclude specific filenames anywhere
-exclude = ["**/cache.db", "**/temp.log"]
+# exclude = ["**/cache.db", "**/temp.log"]
 
 # Exclude entire directory
-exclude = ["~/.config/app/cache/**"]
+# exclude = ["~/.config/app/cache/**"]
 
 # =============================================================================
 # Machine ID Examples

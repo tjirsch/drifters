@@ -1,4 +1,4 @@
-use crate::config::{expand_tilde, resolve_fileset, LocalConfig, SyncRules};
+use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
 use crate::git::{check_file_safety, commit_and_push, confirm_operation, EphemeralRepoGuard};
 use crate::parser::sections::{detect_comment_syntax, extract_syncable_content};
@@ -97,27 +97,18 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
             // Read file content
             let content = fs::read_to_string(&file_path)?;
 
-            // Check if we should process sections (always scan for tags)
-            let should_process_sections = should_process_sections(app_config, filename);
-
-            let content_to_sync = if should_process_sections {
-                // Try to extract syncable content (excludes drifters::exclude sections)
-                let comment = detect_comment_syntax(filename);
-                match extract_syncable_content(&content, comment)? {
-                    Some(syncable) => {
-                        log::debug!("Found section tags in {}, syncing non-excluded content", filename);
-                        syncable
-                    }
-                    None => {
-                        // No tags found, sync entire file
-                        log::debug!("No section tags in {}, syncing entire file", filename);
-                        content.clone()
-                    }
+            // Try to extract syncable content (excludes drifters::exclude sections)
+            let comment = detect_comment_syntax(filename);
+            let content_to_sync = match extract_syncable_content(&content, comment)? {
+                Some(syncable) => {
+                    log::debug!("Found section tags in {}, syncing non-excluded content", filename);
+                    syncable
                 }
-            } else {
-                // Force full file sync (sections config set to false)
-                log::debug!("Section processing disabled for {}, syncing entire file", filename);
-                content.clone()
+                None => {
+                    // No tags found, sync entire file
+                    log::debug!("No section tags in {}, syncing entire file", filename);
+                    content.clone()
+                }
             };
 
             // Write to machines/[machine-id]/ only
@@ -163,16 +154,4 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     println!("✓ Successfully pushed {} file(s)", pushed_files);
 
     Ok(())
-}
-
-/// Check if sections should be processed for this file
-/// Returns true unless explicitly disabled in app config
-fn should_process_sections(app_config: &crate::config::AppConfig, filename: &str) -> bool {
-    // Check if explicitly specified
-    if let Some(&enabled) = app_config.sections.get(filename) {
-        return enabled;
-    }
-
-    // Default: Always scan for tags (auto-detection)
-    true
 }

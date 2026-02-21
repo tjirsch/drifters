@@ -214,9 +214,6 @@ exclude = [...]
 [apps.app2]
 include = [...]
 
-[apps.app2.sections]
-"config.json" = true
-
 [apps.app3]
 include = [...]
 include-macos = [...]

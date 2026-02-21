@@ -21,8 +21,8 @@ pub fn clone_repo(url: &str, path: &PathBuf) -> Result<()> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(DriftersError::Git(git2::Error::from_str(&format!(
-            "git clone failed: {}",
-            stderr
+            "Failed to clone repository\nRepository URL: {}\nError: {}",
+            url, stderr
         ))));
     }
 
@@ -43,14 +43,10 @@ pub fn init_repo(path: &PathBuf) -> Result<Repository> {
     Ok(repo)
 }
 
-pub fn open_repo(path: &PathBuf) -> Result<Repository> {
-    Ok(Repository::open(path)?)
-}
-
 pub fn commit_and_push(repo_path: &PathBuf, message: &str) -> Result<()> {
     log::info!("Committing and pushing: {}", message);
 
-    let repo = open_repo(repo_path)?;
+    let repo = Repository::open(repo_path)?;
 
     // Add all changes
     let mut index = repo.index()?;
@@ -128,6 +124,12 @@ fn push_to_remote(repo: &Repository) -> Result<()> {
         .shorthand()
         .ok_or_else(|| DriftersError::Config("Could not get branch name".to_string()))?;
 
+    // Get remote URL for error reporting
+    let remote_url = repo.find_remote("origin")
+        .ok()
+        .and_then(|r| r.url().map(|s| s.to_string()))
+        .unwrap_or_else(|| "unknown".to_string());
+
     log::debug!("Pushing {} to origin", branch);
 
     // Use system git command
@@ -146,8 +148,8 @@ fn push_to_remote(repo: &Repository) -> Result<()> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(DriftersError::Git(git2::Error::from_str(&format!(
-            "git push failed: {}",
-            stderr
+            "Failed to push to remote\nRepository URL: {}\nError: {}",
+            remote_url, stderr
         ))));
     }
 
@@ -167,15 +169,4 @@ fn get_signature(repo: &Repository) -> Result<Signature<'static>> {
         .unwrap_or_else(|_| "drifters@localhost".to_string());
 
     Ok(Signature::now(&name, &email)?)
-}
-
-pub fn get_remote_url(repo_path: &PathBuf) -> Result<String> {
-    let repo = open_repo(repo_path)?;
-    let remote = repo.find_remote("origin")?;
-
-    let url = remote
-        .url()
-        .ok_or_else(|| DriftersError::Config("Remote has no URL".to_string()))?;
-
-    Ok(url.to_string())
 }

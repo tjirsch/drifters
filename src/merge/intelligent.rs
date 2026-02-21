@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub fn intelligent_merge(
     all_versions: &HashMap<String, String>,
     current_machine_id: &str,
-    filename: &str,
+    _filename: &str,
     _app_config: &AppConfig,
 ) -> Result<String> {
     // Handle simple cases first

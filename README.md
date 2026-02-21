@@ -195,11 +195,6 @@ include-macos = [
 # Per-machine overrides
 [apps.zed.machines.laptop]
 exclude = ["**/keymap.json"]  # Laptop has different keyboard
-
-# Section processing (optional - auto-detected by default)
-[apps.zed.sections]
-"settings.json" = true   # Scan for section tags
-"keymap.json" = false    # Always sync entire file
 ```
 
 ## Use Cases
@@ -260,6 +255,9 @@ Runs `drifters pull --yolo` in background on shell startup. Changes applied sile
 
 Check out [presets/](presets/) for pre-configured definitions:
 
+- **[Cursor](presets/cursor.toml)** - AI-powered code editor built on VS Code
+- **[Visual Studio Code](presets/vscode.toml)** - Popular code editor with settings, keybindings, and snippets
+- **[Windsurf](presets/windsurf.toml)** - Codeium's agentic code editor
 - **[Zed Editor](presets/zed.toml)** - Modern code editor
 - More coming soon!
 
@@ -268,24 +266,24 @@ Check out [presets/](presets/) for pre-configured definitions:
 **Recommended method (using import):**
 
 ```bash
-# Import a preset directly
-drifters import app zed --file presets/zed.toml
+# Import VS Code preset directly
+drifters import app vscode --file presets/vscode.toml
 
 # Apply on this machine
-drifters merge --app zed
+drifters merge --app vscode
 
 # On other machines, just pull and merge
 drifters pull
-drifters merge --app zed
+drifters merge --app vscode
 ```
 
-**Alternative (manual editing):**
+**Customize and re-import:**
 
 ```bash
 # Export current config, edit, re-import
-drifters export app zed --file ~/zed.toml
-vim ~/zed.toml
-drifters import app zed --file ~/zed.toml
+drifters export app vscode --file ~/vscode-custom.toml
+vim ~/vscode-custom.toml
+drifters import app vscode --file ~/vscode-custom.toml
 ```
 
 See [docs/IMPORT_EXPORT.md](docs/IMPORT_EXPORT.md) for complete guide.

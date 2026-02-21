@@ -96,14 +96,8 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
 
             // Apply section merging if needed
             let final_content = if !local_content.is_empty() {
-                let should_process_sections = should_process_sections(app_config, filename);
-
-                if should_process_sections {
-                    let comment = detect_comment_syntax(filename);
-                    merge_synced_content(&local_content, &merged_content, comment)?
-                } else {
-                    merged_content
-                }
+                let comment = detect_comment_syntax(filename);
+                merge_synced_content(&local_content, &merged_content, comment)?
             } else {
                 merged_content
             };
@@ -156,13 +150,6 @@ fn collect_machine_versions(
     }
 
     Ok(versions)
-}
-
-fn should_process_sections(app_config: &crate::config::AppConfig, filename: &str) -> bool {
-    if let Some(&enabled) = app_config.sections.get(filename) {
-        return enabled;
-    }
-    true
 }
 
 fn show_file_diff(old: &str, new: &str) {

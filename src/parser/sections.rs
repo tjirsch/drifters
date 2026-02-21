@@ -101,8 +101,8 @@ pub fn merge_synced_content(
 /// Extract exclude sections from content
 fn extract_exclude_sections(
     content: &str,
-    start_marker: &str,
-    stop_marker: &str,
+    start_tag: &str,
+    stop_tag: &str,
 ) -> Result<Vec<String>> {
     let mut sections = Vec::new();
     let mut current_section = String::new();
@@ -111,7 +111,7 @@ fn extract_exclude_sections(
     for line in content.lines() {
         let trimmed = line.trim();
 
-        if trimmed.contains(start_marker) {
+        if trimmed.contains(start_tag) {
             in_section = true;
             current_section.clear();
             current_section.push_str(line);
@@ -119,7 +119,7 @@ fn extract_exclude_sections(
             continue;
         }
 
-        if trimmed.contains(stop_marker) {
+        if trimmed.contains(stop_tag) {
             current_section.push_str(line);
             current_section.push('\n');
             sections.push(current_section.clone());

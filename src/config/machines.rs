@@ -54,12 +54,6 @@ impl MachineRegistry {
         );
     }
 
-    pub fn update_sync_time(&mut self, machine_id: &str) {
-        if let Some(machine) = self.machines.get_mut(machine_id) {
-            machine.last_sync = Some(Utc::now());
-        }
-    }
-
     pub fn detect_os() -> String {
         std::env::consts::OS.to_string()
     }

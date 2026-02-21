@@ -108,14 +108,8 @@ pub fn merge_command(
 
             // Apply section merging if needed
             let final_content = if let Some(ref local) = current_local {
-                let should_process_sections = should_process_sections(app_config, filename);
-
-                if should_process_sections {
-                    let comment = detect_comment_syntax(filename);
-                    merge_synced_content(local, &merged_content, comment)?
-                } else {
-                    merged_content
-                }
+                let comment = detect_comment_syntax(filename);
+                merge_synced_content(local, &merged_content, comment)?
             } else {
                 merged_content
             };
@@ -221,7 +215,7 @@ fn collect_machine_versions(
 }
 
 /// Show diff for a file
-fn show_file_diff(filename: &str, old: &str, new: &str) -> Result<()> {
+fn show_file_diff(_filename: &str, old: &str, new: &str) -> Result<()> {
     use similar::TextDiff;
 
     let diff = TextDiff::from_lines(old, new);
@@ -245,14 +239,6 @@ fn show_file_diff(filename: &str, old: &str, new: &str) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Check if sections should be processed for this file
-fn should_process_sections(app_config: &crate::config::AppConfig, filename: &str) -> bool {
-    if let Some(&enabled) = app_config.sections.get(filename) {
-        return enabled;
-    }
-    true
 }
 
 /// Simple confirmation prompt

@@ -10,6 +10,19 @@ pub struct LocalConfig {
     // It's cloned/pulled on each command and deleted after
     #[serde(skip)]
     pub repo_path: PathBuf,
+
+    // Update settings
+    /// When to check for updates: "never", "always", "daily". Default "always".
+    #[serde(default = "default_self_update_frequency")]
+    pub self_update_frequency: String,
+
+    /// Last update check timestamp (Unix epoch seconds)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_update_check: Option<String>,
+}
+
+fn default_self_update_frequency() -> String {
+    "always".to_string()
 }
 
 impl LocalConfig {
@@ -18,6 +31,8 @@ impl LocalConfig {
             machine_id,
             repo_url,
             repo_path: Self::get_temp_repo_path().unwrap_or_default(),
+            self_update_frequency: default_self_update_frequency(),
+            last_update_check: None,
         }
     }
 

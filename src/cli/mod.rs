@@ -1,17 +1,15 @@
 pub mod add;
+pub mod diff;
 pub mod exclude;
+pub mod export;
+pub mod history;
 pub mod hook;
+pub mod import;
 pub mod init;
 pub mod list;
+pub mod merge;
 pub mod pull;
 pub mod push;
+pub mod restore;
+pub mod self_update;
 pub mod status;
-
-pub use add::add_app;
-pub use exclude::exclude_file;
-pub use hook::generate_hook;
-pub use init::initialize;
-pub use list::list_apps;
-pub use pull::pull_command;
-pub use push::push_command;
-pub use status::show_status;

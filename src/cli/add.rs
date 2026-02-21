@@ -1,8 +1,7 @@
-use crate::config::{AppConfig, LocalConfig, SyncMode, SyncRules};
+use crate::config::{AppConfig, LocalConfig, SyncRules};
 use crate::error::Result;
 use crate::git::{commit_and_push, EphemeralRepoGuard};
 use std::io::{self, Write};
-use std::path::PathBuf;
 
 pub fn add_app(app_name: String) -> Result<()> {
     log::info!("Adding app: {}", app_name);
@@ -25,10 +24,13 @@ pub fn add_app(app_name: String) -> Result<()> {
     }
 
     println!("Adding app '{}'", app_name);
-    println!("Enter config file paths to sync (one per line, empty line to finish):");
-    println!("Example: ~/.config/zed/settings.json");
+    println!("\nEnter file patterns to include (one per line, empty line to finish):");
+    println!("Examples:");
+    println!("  ~/.config/zed/settings.json");
+    println!("  ~/.config/nvim/**/*.lua");
+    println!("  ~/.zshrc");
 
-    let mut files = Vec::new();
+    let mut include_patterns = Vec::new();
 
     loop {
         print!("> ");
@@ -43,39 +45,55 @@ pub fn add_app(app_name: String) -> Result<()> {
             break;
         }
 
-        let path = PathBuf::from(trimmed);
-        files.push(path);
+        include_patterns.push(trimmed.to_string());
         println!("  Added: {}", trimmed);
     }
 
-    if files.is_empty() {
-        println!("No files specified, cancelling");
+    if include_patterns.is_empty() {
+        println!("No patterns specified, cancelling");
         return Ok(());
     }
 
-    // Ask for sync mode
-    println!("\nSync mode:");
-    println!("  1. Full - sync entire files (default)");
-    println!("  2. Markers - sync only content between markers");
-    print!("Choice [1]: ");
-    io::stdout().flush()?;
+    // Ask for optional exclude patterns
+    println!("\nEnter file patterns to exclude (optional, empty line to skip):");
+    println!("Examples:");
+    println!("  ~/.config/zed/workspace-*.json");
+    println!("  ~/.config/zed/cache/**");
 
-    let mut mode_input = String::new();
-    io::stdin().read_line(&mut mode_input)?;
+    let mut exclude_patterns = Vec::new();
 
-    let sync_mode = match mode_input.trim() {
-        "2" => SyncMode::Markers,
-        _ => SyncMode::Full,
-    };
+    loop {
+        print!("> ");
+        io::stdout().flush()?;
 
-    println!("Using sync mode: {:?}", sync_mode);
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        let trimmed = input.trim();
+
+        if trimmed.is_empty() {
+            break;
+        }
+
+        exclude_patterns.push(trimmed.to_string());
+        println!("  Added exclusion: {}", trimmed);
+    }
+
+    println!("\nNote: Files will be scanned for section tags automatically.");
+    println!("Use '# drifters::exclude::start' and '# drifters::exclude::stop' to exclude sections.");
 
     // Create app config
     let app_config = AppConfig {
-        files,
-        sync_mode,
-        exceptions: Default::default(),
-        selectors: Default::default(),
+        include: include_patterns,
+        exclude: exclude_patterns,
+        include_macos: vec![],
+        include_linux: vec![],
+        include_windows: vec![],
+        exclude_macos: vec![],
+        exclude_linux: vec![],
+        exclude_windows: vec![],
+        sections: Default::default(),
+        machines: Default::default(),
     };
 
     // Add to rules

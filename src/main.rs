@@ -5,7 +5,6 @@ mod git;
 mod merge;
 mod parser;
 mod sync;
-mod tui;
 
 use clap::{Parser, Subcommand};
 use error::Result;
@@ -62,8 +61,129 @@ enum Commands {
         /// Optional app name to diff
         app_name: Option<String>,
     },
+    /// Re-merge configs using current rules
+    Merge {
+        /// Optional app name to merge
+        app_name: Option<String>,
+
+        /// Only consider state from specific machine
+        #[arg(long)]
+        machine: Option<String>,
+
+        /// Use OS-specific rules for this OS
+        #[arg(long)]
+        os: Option<String>,
+
+        /// Show what would change without applying
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Import app or rules from file
+    Import {
+        #[command(subcommand)]
+        target: ImportTarget,
+    },
+    /// Export app or rules to file
+    Export {
+        #[command(subcommand)]
+        target: ExportTarget,
+    },
+    /// Show history of rules or app
+    History {
+        #[command(subcommand)]
+        target: HistoryTarget,
+    },
+    /// Restore previous version of rules or app
+    Restore {
+        #[command(subcommand)]
+        target: RestoreTarget,
+    },
     /// Generate shell hook for auto-pull
     Hook,
+    /// Check for and install new releases from GitHub
+    SelfUpdate {
+        /// Only check if an update is available; do not install
+        #[arg(long)]
+        check_only: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum ImportTarget {
+    /// Import app definition from file
+    App {
+        /// App name
+        app_name: String,
+        /// File to import from
+        #[arg(long)]
+        file: std::path::PathBuf,
+    },
+    /// Import entire rules file
+    Rules {
+        /// File to import from
+        #[arg(long)]
+        file: std::path::PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum ExportTarget {
+    /// Export app definition to file
+    App {
+        /// App name
+        app_name: String,
+        /// File to export to
+        #[arg(long)]
+        file: std::path::PathBuf,
+    },
+    /// Export entire rules file
+    Rules {
+        /// File to export to
+        #[arg(long)]
+        file: std::path::PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum HistoryTarget {
+    /// Show history of all rules
+    Rules {
+        /// Number of commits to show
+        #[arg(long, default_value = "10")]
+        limit: usize,
+        /// Show diff for specific commit
+        #[arg(long)]
+        commit: Option<String>,
+    },
+    /// Show history of specific app
+    App {
+        /// App name
+        app_name: String,
+        /// Number of commits to show
+        #[arg(long, default_value = "10")]
+        limit: usize,
+        /// Show diff for specific commit
+        #[arg(long)]
+        commit: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum RestoreTarget {
+    /// Restore app from previous commit
+    App {
+        /// App name
+        app_name: String,
+        /// Commit hash to restore from
+        #[arg(long)]
+        commit: String,
+    },
+    /// Restore entire rules from previous commit
+    Rules {
+        /// Commit hash to restore from
+        #[arg(long)]
+        commit: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -78,6 +198,13 @@ fn main() -> Result<()> {
         env_logger::Builder::from_default_env()
             .filter_level(log::LevelFilter::Info)
             .init();
+    }
+
+    // Check for updates (unless running self-update or init command)
+    if !matches!(cli.command, Commands::SelfUpdate { .. } | Commands::Init { .. }) {
+        if let Ok(mut config) = config::LocalConfig::load() {
+            let _ = cli::self_update::maybe_check_for_updates(&mut config);
+        }
     }
 
     match cli.command {
@@ -103,13 +230,56 @@ fn main() -> Result<()> {
             cli::status::show_status()
         }
         Commands::Diff { app_name } => {
-            println!("Showing diff{}",
-                app_name.map(|a| format!(" for {}", a)).unwrap_or_default());
-            // TODO: Implement diff
-            Ok(())
+            cli::diff::show_diff(app_name)
+        }
+        Commands::Merge { app_name, machine, os, dry_run } => {
+            cli::merge::merge_command(app_name, machine, os, dry_run, cli.yolo)
+        }
+        Commands::Import { target } => match target {
+            ImportTarget::App { app_name, file } => {
+                cli::import::import_app(app_name, file)
+            }
+            ImportTarget::Rules { file } => {
+                cli::import::import_rules(file)
+            }
+        }
+        Commands::Export { target } => match target {
+            ExportTarget::App { app_name, file } => {
+                cli::export::export_app(app_name, file)
+            }
+            ExportTarget::Rules { file } => {
+                cli::export::export_rules(file)
+            }
+        }
+        Commands::History { target } => match target {
+            HistoryTarget::Rules { limit, commit } => {
+                if let Some(hash) = commit {
+                    cli::history::show_commit_diff(hash, None)
+                } else {
+                    cli::history::show_history_rules(limit)
+                }
+            }
+            HistoryTarget::App { app_name, limit, commit } => {
+                if let Some(hash) = commit {
+                    cli::history::show_commit_diff(hash, Some(app_name))
+                } else {
+                    cli::history::show_history_app(app_name, limit)
+                }
+            }
+        }
+        Commands::Restore { target } => match target {
+            RestoreTarget::App { app_name, commit } => {
+                cli::restore::restore_app(app_name, commit)
+            }
+            RestoreTarget::Rules { commit } => {
+                cli::restore::restore_rules(commit)
+            }
         }
         Commands::Hook => {
             cli::hook::generate_hook()
+        }
+        Commands::SelfUpdate { check_only } => {
+            cli::self_update::run_self_update(check_only)
         }
     }
 }

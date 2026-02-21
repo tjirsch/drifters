@@ -1,9 +1,10 @@
-use crate::config::{LocalConfig, SyncMode, SyncRules};
+use crate::config::{expand_tilde, resolve_fileset, LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
 use crate::git::{confirm_operation, EphemeralRepoGuard};
-use crate::parser::markers::{detect_comment_syntax, insert_synced_content};
+use crate::merge::intelligent_merge;
+use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
+use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
 
 pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     log::info!("Pulling configs (yolo: {})", yolo);
@@ -16,7 +17,7 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
-    // Load sync rules
+    // Load sync rules (may have been updated by other machines)
     let rules = SyncRules::load(repo_path)?;
 
     if rules.apps.is_empty() {
@@ -43,122 +44,125 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
 
         println!("\nPulling configs for '{}'...", app);
 
-        // Check if this machine has exceptions for this app
-        let exceptions = app_config
-            .exceptions
-            .get(&config.machine_id)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
+        // Resolve fileset for THIS machine using current OS
+        let fileset = resolve_fileset(
+            app_config,
+            &config.machine_id,
+            std::env::consts::OS,
+        )?;
 
-        for file_path in &app_config.files {
-            // Expand home directory
-            let expanded_path = expand_tilde(file_path);
+        if fileset.is_empty() {
+            log::warn!("No files in fileset for app '{}'", app);
+            warnings.push(format!("No files in fileset for app '{}'", app));
+            continue;
+        }
 
+        for local_path in fileset {
             // Get filename
-            let filename = expanded_path
+            let filename = local_path
                 .file_name()
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown");
 
-            // Check if excepted for this machine
-            if exceptions.contains(&filename.to_string()) {
-                log::debug!("Skipping {} (excepted for {})", filename, config.machine_id);
-                continue;
-            }
-
-            // Source in repo: apps/[app]/merged/[filename]
-            let source_path = repo_path
+            // Collect all machines' versions of this file
+            let machines_dir = repo_path
                 .join("apps")
                 .join(app)
-                .join("merged")
-                .join(filename);
+                .join("machines");
 
-            if !source_path.exists() {
-                log::debug!("Merged file not found: {:?}", source_path);
-                warnings.push(format!("No merged config for: {}", filename));
+            if !machines_dir.exists() {
+                log::debug!("No machines directory for app '{}'", app);
+                warnings.push(format!("No machine configs for app '{}'", app));
                 continue;
             }
 
-            // Create parent directories if needed
-            if let Some(parent) = expanded_path.parent() {
-                fs::create_dir_all(parent)?;
+            let all_versions = collect_machine_versions(&machines_dir, filename)?;
+
+            if all_versions.is_empty() {
+                log::debug!("No versions found for {}", filename);
+                warnings.push(format!("No remote versions for: {}", filename));
+                continue;
             }
 
-            // Read remote content
-            let remote_content = fs::read_to_string(&source_path)?;
+            // Intelligent merge from all machine versions
+            let merged_content = intelligent_merge(
+                &all_versions,
+                &config.machine_id,
+                filename,
+                app_config,
+            )?;
 
-            // Determine final content based on sync mode
-            let final_content = if expanded_path.exists() {
-                let local_content = fs::read_to_string(&expanded_path)?;
+            // If file exists locally, merge sections if needed
+            let final_content = if local_path.exists() {
+                let local_content = fs::read_to_string(&local_path)?;
 
-                match &app_config.sync_mode {
-                    SyncMode::Full => {
-                        // Full mode: replace entire file
-                        if local_content == remote_content {
-                            log::debug!("{} is up to date", filename);
-                            None
-                        } else if !yolo {
-                            let msg = format!("Overwrite local {:?} with remote version?", filename);
-                            if confirm_operation(&msg, true)? {
-                                Some(remote_content)
-                            } else {
-                                None
-                            }
+                // Check if we should process sections
+                let should_process_sections = should_process_sections(app_config, filename);
+
+                if should_process_sections {
+                    // Merge: preserve local exclude sections, update everything else
+                    let comment = detect_comment_syntax(filename);
+                    let merged_with_local = merge_synced_content(
+                        &local_content,
+                        &merged_content,
+                        comment,
+                    )?;
+
+                    if merged_with_local == local_content {
+                        log::debug!("{} is up to date", filename);
+                        None
+                    } else if !yolo {
+                        // Show diff and ask for confirmation
+                        println!("\n  Changes in {}:", filename);
+                        show_simple_diff(&local_content, &merged_with_local);
+                        let msg = format!("Apply changes to {}?", filename);
+                        if confirm_operation(&msg, true)? {
+                            Some(merged_with_local)
                         } else {
-                            Some(remote_content)
+                            None
                         }
+                    } else {
+                        Some(merged_with_local)
                     }
-                    SyncMode::Markers => {
-                        // Markers mode: replace only synced sections
-                        let comment = detect_comment_syntax(filename);
-                        let merged = insert_synced_content(&local_content, &remote_content, comment)?;
-
-                        if merged == local_content {
-                            log::debug!("{} is up to date", filename);
-                            None
-                        } else if !yolo {
-                            let msg = format!("Update synced sections in {:?}?", filename);
-                            if confirm_operation(&msg, true)? {
-                                Some(merged)
-                            } else {
-                                None
-                            }
-                        } else {
-                            Some(merged)
-                        }
-                    }
-                    _ => {
-                        log::warn!("Unsupported sync mode: {:?}. Using full sync.", app_config.sync_mode);
-                        if local_content != remote_content && !yolo {
-                            let msg = format!("Overwrite local {:?} with remote version?", filename);
-                            if confirm_operation(&msg, true)? {
-                                Some(remote_content)
-                            } else {
-                                None
-                            }
-                        } else if local_content != remote_content {
-                            Some(remote_content)
+                } else {
+                    // Full file sync (sections disabled)
+                    if local_content == merged_content {
+                        log::debug!("{} is up to date", filename);
+                        None
+                    } else if !yolo {
+                        println!("\n  Changes in {}:", filename);
+                        show_simple_diff(&local_content, &merged_content);
+                        let msg = format!("Overwrite local {} with merged version?", filename);
+                        if confirm_operation(&msg, true)? {
+                            Some(merged_content)
                         } else {
                             None
                         }
+                    } else {
+                        Some(merged_content)
                     }
                 }
             } else {
                 // File doesn't exist locally - create it
                 if !yolo {
-                    let msg = format!("Create {:?} from remote?", filename);
+                    let msg = format!("Create {} from remote?", filename);
                     if confirm_operation(&msg, true)? {
-                        Some(remote_content)
+                        Some(merged_content)
                     } else {
                         None
                     }
                 } else {
-                    Some(remote_content)
+                    Some(merged_content)
                 }
             };
 
             if let Some(content) = final_content {
-                fs::write(&expanded_path, content)?;
+                // Create parent directories if needed
+                if let Some(parent) = local_path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+
+                fs::write(&local_path, content)?;
                 println!("  ✓ {}", filename);
                 pulled_files += 1;
             } else {
@@ -187,13 +191,76 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     Ok(())
 }
 
-fn expand_tilde(path: &PathBuf) -> PathBuf {
-    if let Some(s) = path.to_str() {
-        if s.starts_with("~/") {
-            if let Some(home) = dirs::home_dir() {
-                return home.join(&s[2..]);
-            }
+/// Collect all machine versions of a specific file
+fn collect_machine_versions(
+    machines_dir: &std::path::Path,
+    filename: &str,
+) -> Result<HashMap<String, String>> {
+    let mut versions = HashMap::new();
+
+    for entry in fs::read_dir(machines_dir)? {
+        let machine_dir = entry?.path();
+
+        if !machine_dir.is_dir() {
+            continue;
+        }
+
+        let machine_id = machine_dir
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        let file_path = machine_dir.join(filename);
+        if file_path.exists() {
+            let content = fs::read_to_string(&file_path)?;
+            versions.insert(machine_id, content);
         }
     }
-    path.clone()
+
+    Ok(versions)
+}
+
+/// Check if sections should be processed for this file
+fn should_process_sections(app_config: &crate::config::AppConfig, filename: &str) -> bool {
+    // Check if explicitly specified
+    if let Some(&enabled) = app_config.sections.get(filename) {
+        return enabled;
+    }
+
+    // Default: Always scan for tags (auto-detection)
+    true
+}
+
+/// Show a simple diff between two strings
+fn show_simple_diff(old: &str, new: &str) {
+    use similar::TextDiff;
+
+    let diff = TextDiff::from_lines(old, new);
+    let mut changes = 0;
+
+    for change in diff.iter_all_changes() {
+        match change.tag() {
+            similar::ChangeTag::Delete => {
+                print!("    - {}", change);
+                changes += 1;
+            }
+            similar::ChangeTag::Insert => {
+                print!("    + {}", change);
+                changes += 1;
+            }
+            similar::ChangeTag::Equal => {
+                // Don't print unchanged lines in summary
+            }
+        }
+
+        if changes >= 10 {
+            println!("    ... (more changes)");
+            break;
+        }
+    }
+
+    if changes == 0 {
+        println!("    (no changes)");
+    }
 }

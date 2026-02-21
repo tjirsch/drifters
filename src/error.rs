@@ -27,6 +27,9 @@ pub enum DriftersError {
     #[error("YAML error: {0}")]
     Yaml(#[from] serde_yaml::Error),
 
+    #[error("HTTP request error: {0}")]
+    Reqwest(#[from] reqwest::Error),
+
     #[error("Merge conflict in file: {0}")]
     MergeConflict(PathBuf),
 

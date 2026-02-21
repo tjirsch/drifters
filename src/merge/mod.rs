@@ -1,6 +1,3 @@
-pub mod apply_rules;
-pub mod conflict;
-pub mod three_way;
+mod intelligent;
 
-pub use three_way::merge_configs;
-pub use conflict::ConflictResolution;
+pub use intelligent::intelligent_merge;

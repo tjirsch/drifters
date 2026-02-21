@@ -8,34 +8,58 @@ pub struct SyncRules {
     pub apps: HashMap<String, AppConfig>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AppConfig {
-    pub files: Vec<PathBuf>,
+    /// Base include patterns (glob patterns supported)
     #[serde(default)]
-    pub sync_mode: SyncMode,
+    pub include: Vec<String>,
+
+    /// Base exclude patterns (glob patterns supported)
     #[serde(default)]
-    pub exceptions: HashMap<String, Vec<String>>,
-    /// Optional selectors per file (for JSONPath, Regex, Lines modes)
-    /// Key is filename, value is the selector string
+    pub exclude: Vec<String>,
+
+    /// macOS-specific include patterns
+    #[serde(rename = "include-macos", default)]
+    pub include_macos: Vec<String>,
+
+    /// Linux-specific include patterns
+    #[serde(rename = "include-linux", default)]
+    pub include_linux: Vec<String>,
+
+    /// Windows-specific include patterns
+    #[serde(rename = "include-windows", default)]
+    pub include_windows: Vec<String>,
+
+    /// macOS-specific exclude patterns
+    #[serde(rename = "exclude-macos", default)]
+    pub exclude_macos: Vec<String>,
+
+    /// Linux-specific exclude patterns
+    #[serde(rename = "exclude-linux", default)]
+    pub exclude_linux: Vec<String>,
+
+    /// Windows-specific exclude patterns
+    #[serde(rename = "exclude-windows", default)]
+    pub exclude_windows: Vec<String>,
+
+    /// Per-file section specification (optional)
+    /// Key is filename, value is whether to force section processing
+    /// If not specified, sections are auto-detected
     #[serde(default)]
-    pub selectors: HashMap<String, String>,
+    pub sections: HashMap<String, bool>,
+
+    /// Machine-specific overrides
+    #[serde(default)]
+    pub machines: HashMap<String, MachineOverride>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum SyncMode {
-    /// Sync the entire file
-    #[default]
-    Full,
-    /// Use comment markers like #-start-sync- (for files that support comments)
-    Markers,
-    /// Select specific keys using JSONPath/YAMLPath (e.g., ".theme", ".keybindings[*]")
-    #[serde(rename = "jsonpath")]
-    JsonPath,
-    /// Select specific line ranges (e.g., "10-50,100-150")
-    Lines,
-    /// Select content matching regex patterns
-    Regex,
+pub struct MachineOverride {
+    #[serde(default)]
+    pub include: Vec<String>,
+
+    #[serde(default)]
+    pub exclude: Vec<String>,
 }
 
 impl SyncRules {

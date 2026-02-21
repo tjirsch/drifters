@@ -1,4 +1,4 @@
-use crate::config::{LocalConfig, SyncRules};
+use crate::config::{LocalConfig, MachineOverride, SyncRules};
 use crate::error::{DriftersError, Result};
 use crate::git::{commit_and_push, EphemeralRepoGuard};
 
@@ -22,13 +22,16 @@ pub fn exclude_file(app_name: String, filename: String) -> Result<()> {
         .get_mut(&app_name)
         .ok_or_else(|| DriftersError::AppNotFound(app_name.clone()))?;
 
-    // Add exception for this machine
-    let exceptions = app_config
-        .exceptions
+    // Add exclusion for this machine
+    let machine_override = app_config
+        .machines
         .entry(config.machine_id.clone())
-        .or_insert_with(Vec::new);
+        .or_insert_with(MachineOverride::default);
 
-    if exceptions.contains(&filename) {
+    // Add the filename as an exclude pattern
+    let exclude_pattern = format!("**/{}", filename);
+
+    if machine_override.exclude.contains(&exclude_pattern) {
         println!(
             "File '{}' is already excluded for {} on machine '{}'",
             filename, app_name, config.machine_id
@@ -36,7 +39,7 @@ pub fn exclude_file(app_name: String, filename: String) -> Result<()> {
         return Ok(());
     }
 
-    exceptions.push(filename.clone());
+    machine_override.exclude.push(exclude_pattern);
 
     // Save rules
     rules.save(repo_path)?;

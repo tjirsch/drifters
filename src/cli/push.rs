@@ -1,9 +1,8 @@
-use crate::config::{LocalConfig, SyncMode, SyncRules};
+use crate::config::{expand_tilde, resolve_fileset, LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
 use crate::git::{check_file_safety, commit_and_push, confirm_operation, EphemeralRepoGuard};
-use crate::parser::markers::{detect_comment_syntax, extract_synced_content};
+use crate::parser::sections::{detect_comment_syntax, extract_syncable_content};
 use std::fs;
-use std::path::PathBuf;
 
 pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     log::info!("Pushing configs (yolo: {})", yolo);
@@ -44,32 +43,29 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
 
         println!("\nPushing configs for '{}'...", app);
 
-        // Check if this machine has exceptions for this app
-        let exceptions = app_config
-            .exceptions
-            .get(&config.machine_id)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
+        // Resolve fileset for this machine using current OS
+        let fileset = resolve_fileset(
+            app_config,
+            &config.machine_id,
+            std::env::consts::OS,
+        )?;
 
-        for file_path in &app_config.files {
-            // Expand home directory
-            let expanded_path = expand_tilde(file_path);
+        if fileset.is_empty() {
+            log::warn!("No files in fileset for app '{}'", app);
+            warnings.push(format!("No files in fileset for app '{}'", app));
+            continue;
+        }
 
+        for file_path in fileset {
             // Get filename
-            let filename = expanded_path
+            let filename = file_path
                 .file_name()
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown");
 
-            // Check if excepted for this machine
-            if exceptions.contains(&filename.to_string()) {
-                log::debug!("Skipping {} (excepted for {})", filename, config.machine_id);
-                continue;
-            }
-
-            if !expanded_path.exists() {
-                log::warn!("File not found: {:?}", expanded_path);
-                warnings.push(format!("File not found: {:?}", expanded_path));
+            if !file_path.exists() {
+                log::warn!("File not found: {:?}", file_path);
+                warnings.push(format!("File not found: {:?}", file_path));
                 continue;
             }
 
@@ -86,10 +82,10 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
 
             // Safety check (unless --yolo)
             if !yolo {
-                if !check_file_safety(&expanded_path, &dest_path)? {
+                if !check_file_safety(&file_path, &dest_path)? {
                     let msg = format!(
                         "File {:?} appears risky to push. Continue?",
-                        expanded_path
+                        file_path
                     );
                     if !confirm_operation(&msg, false)? {
                         log::info!("Skipped {}", filename);
@@ -99,44 +95,34 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
             }
 
             // Read file content
-            let content = fs::read_to_string(&expanded_path)?;
+            let content = fs::read_to_string(&file_path)?;
 
-            // Handle different sync modes
-            let content_to_sync = match &app_config.sync_mode {
-                SyncMode::Full => content.clone(),
-                SyncMode::Markers => {
-                    let comment = detect_comment_syntax(filename);
-                    match extract_synced_content(&content, comment)? {
-                        Some(synced) => synced,
-                        None => {
-                            log::warn!(
-                                "No sync markers found in {} (using marker mode). Skipping.",
-                                filename
-                            );
-                            warnings.push(format!(
-                                "No sync markers found in {} (add {}-start-sync- and {}-stop-sync-)",
-                                filename, comment, comment
-                            ));
-                            continue;
-                        }
+            // Check if we should process sections (always scan for tags)
+            let should_process_sections = should_process_sections(app_config, filename);
+
+            let content_to_sync = if should_process_sections {
+                // Try to extract syncable content (excludes drifters::exclude sections)
+                let comment = detect_comment_syntax(filename);
+                match extract_syncable_content(&content, comment)? {
+                    Some(syncable) => {
+                        log::debug!("Found section tags in {}, syncing non-excluded content", filename);
+                        syncable
+                    }
+                    None => {
+                        // No tags found, sync entire file
+                        log::debug!("No section tags in {}, syncing entire file", filename);
+                        content.clone()
                     }
                 }
-                _ => {
-                    log::warn!("Unsupported sync mode: {:?}. Using full sync.", app_config.sync_mode);
-                    content.clone()
-                }
+            } else {
+                // Force full file sync (sections config set to false)
+                log::debug!("Section processing disabled for {}, syncing entire file", filename);
+                content.clone()
             };
 
-            // Write to destination
+            // Write to machines/[machine-id]/ only
             fs::write(&dest_path, &content_to_sync)?;
             log::debug!("Wrote content to {:?}", dest_path);
-
-            // Update merged state
-            let merged_dir = repo_path.join("apps").join(app).join("merged");
-            fs::create_dir_all(&merged_dir)?;
-
-            let merged_path = merged_dir.join(filename);
-            fs::write(&merged_path, &content_to_sync)?;
 
             println!("  ✓ {}", filename);
             pushed_files += 1;
@@ -179,13 +165,14 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     Ok(())
 }
 
-fn expand_tilde(path: &PathBuf) -> PathBuf {
-    if let Some(s) = path.to_str() {
-        if s.starts_with("~/") {
-            if let Some(home) = dirs::home_dir() {
-                return home.join(&s[2..]);
-            }
-        }
+/// Check if sections should be processed for this file
+/// Returns true unless explicitly disabled in app config
+fn should_process_sections(app_config: &crate::config::AppConfig, filename: &str) -> bool {
+    // Check if explicitly specified
+    if let Some(&enabled) = app_config.sections.get(filename) {
+        return enabled;
     }
-    path.clone()
+
+    // Default: Always scan for tags (auto-detection)
+    true
 }

@@ -1,0 +1,269 @@
+# Complete sync-rules.toml Example
+# This file shows all available configuration options for Drifters
+#
+# Copy this to your drifters repo at: .drifters/sync-rules.toml
+# Then customize for your needs
+
+# =============================================================================
+# Example 1: Simple App with Basic Include/Exclude
+# =============================================================================
+
+[apps.git]
+include = [
+    "~/.gitconfig",
+    "~/.gitignore_global",
+]
+
+# No excludes needed for git - these files are simple
+
+# =============================================================================
+# Example 2: App with Glob Patterns and Exclusions
+# =============================================================================
+
+[apps.nvim]
+# Glob patterns supported
+include = [
+    "~/.config/nvim/**/*.lua",
+    "~/.config/nvim/**/*.vim",
+    "~/.config/nvim/init.lua",
+]
+
+# Exclude temporary and plugin data
+exclude = [
+    "~/.config/nvim/.netrwhist",
+    "~/.config/nvim/plugin/**",       # Auto-generated
+    "~/.config/nvim/lazy-lock.json",  # Plugin lockfile
+]
+
+# =============================================================================
+# Example 3: App with OS-Specific Paths
+# =============================================================================
+
+[apps.zed]
+# Cross-platform default (Linux/XDG)
+include = [
+    "~/.config/zed/settings.json",
+    "~/.config/zed/keymap.json",
+]
+
+exclude = [
+    "~/.config/zed/workspace-*.json",
+    "~/.config/zed/db/**",
+]
+
+# macOS uses different path
+include-macos = [
+    "~/Library/Application Support/Zed/settings.json",
+    "~/Library/Application Support/Zed/keymap.json",
+]
+
+exclude-macos = [
+    "~/Library/Application Support/Zed/workspace-*.json",
+    "~/Library/Application Support/Zed/db/**",
+]
+
+# Windows uses AppData
+include-windows = [
+    "~/AppData/Roaming/Zed/settings.json",
+    "~/AppData/Roaming/Zed/keymap.json",
+]
+
+exclude-windows = [
+    "~/AppData/Roaming/Zed/workspace-*.json",
+    "~/AppData/Local/Zed/db/**",
+]
+
+# =============================================================================
+# Example 4: App with Section Tag Control
+# =============================================================================
+
+[apps.shell]
+include = [
+    "~/.zshrc",
+    "~/.bashrc",
+    "~/.profile",
+]
+
+# Optional: Control section processing per file
+# By default, ALL files are scanned for section tags
+[apps.shell.sections]
+".zshrc" = true      # Scan for drifters::exclude tags (default)
+".bashrc" = true
+".profile" = false   # Force full-file sync, ignore any tags
+
+# Use section tags in the actual files:
+# # ~/.zshrc
+# export EDITOR="nvim"
+# alias g="git"
+#
+# # drifters::exclude::start
+# export LOCAL_PATH="/Users/thomas/bin"
+# # drifters::exclude::stop
+
+# =============================================================================
+# Example 5: App with Machine-Specific Overrides
+# =============================================================================
+
+[apps.vscode]
+include = [
+    "~/.config/Code/User/settings.json",
+    "~/.config/Code/User/keybindings.json",
+    "~/.config/Code/User/snippets/**",
+]
+
+# Laptop has different keyboard layout - don't sync keybindings
+[apps.vscode.machines.laptop]
+exclude = [
+    "**/keybindings.json",
+]
+
+# Work machine has different snippets
+[apps.vscode.machines.work-desktop]
+exclude = [
+    "~/.config/Code/User/snippets/work-*.json",
+]
+include = [
+    "~/.config/Code/User/work-settings.json",  # Only on work machine
+]
+
+# =============================================================================
+# Example 6: App with Multiple Machine Overrides
+# =============================================================================
+
+[apps.ssh]
+include = [
+    "~/.ssh/config",
+    "~/.ssh/known_hosts",
+]
+
+# Each machine has different SSH keys - exclude them
+[apps.ssh.machines.laptop]
+exclude = [
+    "~/.ssh/id_*",
+    "~/.ssh/*.pub",
+]
+
+[apps.ssh.machines.desktop]
+exclude = [
+    "~/.ssh/id_*",
+    "~/.ssh/*.pub",
+]
+
+[apps.ssh.machines.server]
+exclude = [
+    "~/.ssh/id_*",
+    "~/.ssh/*.pub",
+    "~/.ssh/authorized_keys",  # Server manages this
+]
+
+# =============================================================================
+# Example 7: Complex App with All Features
+# =============================================================================
+
+[apps.tmux]
+# Base configuration
+include = [
+    "~/.tmux.conf",
+    "~/.tmux/**/*.conf",
+]
+
+exclude = [
+    "~/.tmux/resurrect/**",     # Session state
+    "~/.tmux/plugins/**",        # Plugins (reinstallable)
+]
+
+# macOS-specific (different clipboard utility)
+include-macos = [
+    "~/.tmux/tmux-macos.conf",
+]
+
+# Linux-specific
+include-linux = [
+    "~/.tmux/tmux-linux.conf",
+]
+
+# Work laptop needs special config
+[apps.tmux.machines.work-laptop]
+include = [
+    "~/.tmux/work.conf",
+]
+
+# Force full-file sync for main config (no section tags)
+[apps.tmux.sections]
+".tmux.conf" = false
+
+# =============================================================================
+# Tips for Writing Your Own
+# =============================================================================
+
+# 1. Start simple - add include patterns first
+# 2. Test on one machine before pulling on others
+# 3. Use exclude for: caches, sessions, temporary files, downloads
+# 4. Use machine overrides for: different hardware, work vs personal
+# 5. Use OS variants for: different paths, platform-specific configs
+# 6. Use section tags for: API keys, local paths, machine-specific settings
+# 7. Test with --dry-run first: drifters merge --app myapp --dry-run
+
+# =============================================================================
+# Pattern Matching Examples
+# =============================================================================
+
+# Exact match
+include = ["~/.gitconfig"]
+
+# All files in directory (non-recursive)
+include = ["~/.config/app/*"]
+
+# All files recursively
+include = ["~/.config/app/**/*"]
+
+# All JSON files recursively
+include = ["~/.config/app/**/*.json"]
+
+# Exclude specific filenames anywhere
+exclude = ["**/cache.db", "**/temp.log"]
+
+# Exclude entire directory
+exclude = ["~/.config/app/cache/**"]
+
+# =============================================================================
+# Machine ID Examples
+# =============================================================================
+
+# Your machine ID is auto-detected from hostname
+# Or set manually during: drifters init
+
+# Common machine IDs:
+# - laptop
+# - desktop
+# - work-laptop
+# - mac01, mac02
+# - linux-server
+# - windows-pc
+
+# Check your machine ID:
+# cat ~/.config/drifters/config.toml
+
+# =============================================================================
+# Section Tag Examples
+# =============================================================================
+
+# Shell/Python/Ruby/YAML: #
+# # drifters::exclude::start
+# local content here
+# # drifters::exclude::stop
+
+# JavaScript/TypeScript/Rust/C++: //
+# // drifters::exclude::start
+# local content here
+# // drifters::exclude::stop
+
+# Vim script: "
+# " drifters::exclude::start
+# local content here
+# " drifters::exclude::stop
+
+# Lua: --
+# -- drifters::exclude::start
+# -- local content here
+# -- drifters::exclude::stop

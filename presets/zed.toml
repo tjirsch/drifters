@@ -1,0 +1,87 @@
+# Zed Editor - Modern, high-performance code editor
+# https://zed.dev
+#
+# This preset syncs your core Zed configuration across machines while excluding
+# ephemeral data like workspace state, caches, and downloaded extensions.
+#
+# Usage:
+#   drifters add zed  # Then paste this configuration
+#   OR manually add to .drifters/sync-rules.toml in your repo
+
+[apps.zed]
+# Core configuration files (cross-platform default paths)
+include = [
+    "~/.config/zed/settings.json",
+    "~/.config/zed/keymap.json",
+    "~/.config/zed/tasks.json",
+]
+
+# Exclude temporary and machine-specific files
+exclude = [
+    "~/.config/zed/workspace-*.json",      # Workspace state (session-specific)
+    "~/.config/zed/.tmp*",                  # Temporary files
+    "~/.config/zed/db/**",                  # Database/cache
+    "~/.config/zed/embeddings/**",          # AI embeddings cache
+    "~/.config/zed/languages/**",           # Downloaded language servers (reinstallable)
+    "~/.config/zed/extensions/**",          # Downloaded extensions (reinstallable)
+    "~/.config/zed/copilot/**",            # Copilot cache
+]
+
+# macOS-specific paths
+# Note: Zed on macOS can use either ~/.config/zed or ~/Library/Application Support/Zed
+include-macos = [
+    "~/Library/Application Support/Zed/settings.json",
+    "~/Library/Application Support/Zed/keymap.json",
+    "~/Library/Application Support/Zed/tasks.json",
+]
+
+exclude-macos = [
+    "~/Library/Application Support/Zed/workspace-*.json",
+    "~/Library/Application Support/Zed/db/**",
+    "~/Library/Application Support/Zed/embeddings/**",
+    "~/Library/Application Support/Zed/languages/**",
+    "~/Library/Application Support/Zed/extensions/**",
+    "~/Library/Application Support/Zed/copilot/**",
+]
+
+# Windows-specific paths
+include-windows = [
+    "~/AppData/Roaming/Zed/settings.json",
+    "~/AppData/Roaming/Zed/keymap.json",
+    "~/AppData/Roaming/Zed/tasks.json",
+]
+
+exclude-windows = [
+    "~/AppData/Roaming/Zed/workspace-*.json",
+    "~/AppData/Roaming/Zed/db/**",
+    "~/AppData/Local/Zed/extensions/**",    # Extensions on Windows are in Local
+    "~/AppData/Local/Zed/languages/**",
+    "~/AppData/Roaming/Zed/copilot/**",
+]
+
+# Section processing is enabled by default
+# Files will be scanned for drifters::exclude sections automatically
+#
+# Example: Exclude machine-specific settings in settings.json:
+# {
+#   "theme": "One Dark",
+#   "vim_mode": true,
+#
+#   // drifters::exclude::start
+#   "working_directory": "/Users/specific/path",
+#   "recently_opened": [...]
+#   // drifters::exclude::stop
+# }
+
+# Machine-specific overrides (examples)
+# Uncomment and customize for your machines:
+
+# [apps.zed.machines.laptop]
+# exclude = [
+#     "**/keymap.json"    # Don't sync keymaps on laptop (different keyboard layout)
+# ]
+
+# [apps.zed.machines.work-desktop]
+# exclude = [
+#     "**/tasks.json"     # Work has different task configurations
+# ]

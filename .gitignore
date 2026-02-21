@@ -1,0 +1,8 @@
+/target
+.DS_Store
+/.claude
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

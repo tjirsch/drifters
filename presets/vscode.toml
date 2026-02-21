@@ -1,0 +1,88 @@
+# Visual Studio Code Configuration Preset
+#
+# This preset syncs VS Code user settings, keybindings, and snippets across machines.
+#
+# What gets synced:
+# - settings.json - All user preferences
+# - keybindings.json - Custom keyboard shortcuts
+# - snippets/ - User-defined code snippets
+#
+# What gets excluded:
+# - Workspace-specific data
+# - Extension storage and caches
+# - Recent file history
+# - Temporary files and logs
+#
+# Usage:
+#   drifters import-app vscode --file presets/vscode.toml
+#   drifters push vscode
+
+[apps.vscode]
+# Cross-platform base configuration (rarely used since VS Code is OS-specific)
+include = []
+
+exclude = [
+    # Workspace-specific storage
+    "**/workspaceStorage/**",
+    "**/User/workspaceStorage/**",
+
+    # Extension storage and caches
+    "**/globalStorage/**",
+    "**/User/globalStorage/**",
+    "**/GPUCache/**",
+    "**/CachedData/**",
+    "**/CachedExtensions/**",
+    "**/CachedExtensionVSIXs/**",
+
+    # Logs and temporary files
+    "**/logs/**",
+    "**/User/logs/**",
+
+    # Sync state (if using built-in Settings Sync)
+    "**/sync/**",
+    "**/User/sync/**",
+
+    # History and session data
+    "**/User/History/**",
+    "**/User/Backups/**",
+
+    # Machine-specific files
+    "**/languageExternalResources.json",
+    "**/machineid",
+    "**/storage.json",
+]
+
+# macOS-specific paths
+include-macos = [
+    "~/Library/Application Support/Code/User/settings.json",
+    "~/Library/Application Support/Code/User/keybindings.json",
+    "~/Library/Application Support/Code/User/snippets/**/*.json",
+    "~/Library/Application Support/Code/User/snippets/**/*.code-snippets",
+]
+
+# Linux-specific paths
+include-linux = [
+    "~/.config/Code/User/settings.json",
+    "~/.config/Code/User/keybindings.json",
+    "~/.config/Code/User/snippets/**/*.json",
+    "~/.config/Code/User/snippets/**/*.code-snippets",
+]
+
+# Windows-specific paths (using forward slashes, drifters will handle conversion)
+include-windows = [
+    "~/AppData/Roaming/Code/User/settings.json",
+    "~/AppData/Roaming/Code/User/keybindings.json",
+    "~/AppData/Roaming/Code/User/snippets/**/*.json",
+    "~/AppData/Roaming/Code/User/snippets/**/*.code-snippets",
+]
+
+# Example machine-specific overrides:
+# Uncomment and customize for your machines
+
+# [apps.vscode.machines.laptop]
+# # Don't sync keybindings on laptop (different keyboard layout)
+# exclude = ["**/keybindings.json"]
+
+# [apps.vscode.machines.work]
+# # Don't sync certain snippets at work
+# exclude = ["**/snippets/personal*.json"]

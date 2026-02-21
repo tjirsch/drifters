@@ -1,0 +1,97 @@
+# Cursor IDE Configuration Preset
+#
+# Cursor is an AI-powered code editor built on VS Code.
+# This preset syncs user settings, keybindings, and snippets.
+#
+# What gets synced:
+# - settings.json - All user preferences
+# - keybindings.json - Custom keyboard shortcuts
+# - snippets/ - User-defined code snippets
+#
+# What gets excluded:
+# - SQLite database files (state.vscdb) - contains some settings but is binary
+# - Workspace-specific data
+# - Extension storage and caches
+# - Temporary files and logs
+#
+# Note: Cursor stores some settings in a SQLite database (state.vscdb).
+# This preset focuses on JSON configuration files which are easier to sync.
+# Some Cursor-specific settings may not sync via this method.
+#
+# Usage:
+#   drifters import-app cursor --file presets/cursor.toml
+#   drifters push cursor
+
+[apps.cursor]
+# Cross-platform base configuration (rarely used since Cursor is OS-specific)
+include = []
+
+exclude = [
+    # SQLite databases (binary, harder to merge)
+    "**/globalStorage/state.vscdb",
+    "**/globalStorage/state.vscdb.backup",
+
+    # Workspace-specific storage
+    "**/workspaceStorage/**",
+    "**/User/workspaceStorage/**",
+
+    # Extension storage and caches
+    "**/globalStorage/**",
+    "**/User/globalStorage/**",
+    "**/GPUCache/**",
+    "**/CachedData/**",
+    "**/CachedExtensions/**",
+    "**/CachedExtensionVSIXs/**",
+
+    # Logs and temporary files
+    "**/logs/**",
+    "**/User/logs/**",
+
+    # Sync state
+    "**/sync/**",
+    "**/User/sync/**",
+
+    # History and session data
+    "**/User/History/**",
+    "**/User/Backups/**",
+
+    # Machine-specific files
+    "**/languageExternalResources.json",
+    "**/machineid",
+    "**/storage.json",
+]
+
+# macOS-specific paths
+include-macos = [
+    "~/Library/Application Support/Cursor/User/settings.json",
+    "~/Library/Application Support/Cursor/User/keybindings.json",
+    "~/Library/Application Support/Cursor/User/snippets/**/*.json",
+    "~/Library/Application Support/Cursor/User/snippets/**/*.code-snippets",
+]
+
+# Linux-specific paths
+include-linux = [
+    "~/.config/Cursor/User/settings.json",
+    "~/.config/Cursor/User/keybindings.json",
+    "~/.config/Cursor/User/snippets/**/*.json",
+    "~/.config/Cursor/User/snippets/**/*.code-snippets",
+]
+
+# Windows-specific paths
+include-windows = [
+    "~/AppData/Roaming/Cursor/User/settings.json",
+    "~/AppData/Roaming/Cursor/User/keybindings.json",
+    "~/AppData/Roaming/Cursor/User/snippets/**/*.json",
+    "~/AppData/Roaming/Cursor/User/snippets/**/*.code-snippets",
+]
+
+# Example machine-specific overrides:
+# Uncomment and customize for your machines
+
+# [apps.cursor.machines.laptop]
+# # Don't sync keybindings on laptop (different keyboard layout)
+# exclude = ["**/keybindings.json"]
+
+# [apps.cursor.machines.work]
+# # Don't sync certain snippets at work
+# exclude = ["**/snippets/personal*.json"]

@@ -97,6 +97,12 @@ fn find_consensus_version(
             log::info!("Preferring current machine's version due to tie");
             return Ok(current_content);
         }
+    } else {
+        log::warn!(
+            "Current machine '{}' has no version in tie-break; result is non-deterministic. \
+             Run `drifters push` to register this machine's version.",
+            current_machine_id
+        );
     }
 
     Ok(consensus_content)

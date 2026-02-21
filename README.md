@@ -95,6 +95,11 @@ Mark sections of files that should NOT be synced:
 
 Everything outside the `exclude` tags gets synced. The exclude sections stay local to each machine.
 
+**Tag placement rules:**
+- Tags must be on their **own line** — inline tags (after other content) are not recognized
+- Leading whitespace before the comment character is allowed: `    # drifters::exclude::start` ✅
+- The comment character must match the file type (auto-detected from extension; see [Supported Comment Styles](#supported-comment-styles))
+
 ### Three-Level Rule Hierarchy
 
 Rules are resolved in this order:
@@ -388,6 +393,24 @@ Section tags work with any comment syntax:
 - Vim: `" drifters::exclude::start`
 - Lua: `-- drifters::exclude::start`
 - SQL: `-- drifters::exclude::start`
+
+## Security
+
+### Config Repository
+
+Drifters uses your own private Git repository as storage. **Never commit secrets to it.** Use `drifters::exclude` sections to keep sensitive values (API keys, tokens, passwords) local to each machine.
+
+### Self-Update
+
+`drifters self-update` downloads and executes an installer shell script from GitHub releases over HTTPS. The script is not checksum-verified before execution. To avoid running untrusted code:
+
+- Only use `drifters self-update` against the official repository (`github.com/tjirsch/drifters`)
+- Alternatively, install updates manually via `cargo install drifters` or by downloading a release binary directly
+- You can disable automatic update checks entirely: set `self_update_frequency = "never"` in `~/.config/drifters/config.toml`
+
+### Shell Hook
+
+The optional shell hook (`eval "$(drifters hook)"`) runs `drifters pull --yolo` on every new shell session. This means remote config changes are applied automatically and without confirmation. Only enable it if you fully trust the machines pushing to your config repo.
 
 ## FAQ
 

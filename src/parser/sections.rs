@@ -13,7 +13,7 @@ pub fn extract_syncable_content(content: &str, comment_syntax: &str) -> Result<O
     for line in content.lines() {
         let trimmed = line.trim();
 
-        if trimmed.contains(&exclude_start) {
+        if trimmed.starts_with(&exclude_start) {
             in_exclude_block = true;
             found_any_tags = true;
             // Include the tag itself for reconstruction
@@ -22,7 +22,7 @@ pub fn extract_syncable_content(content: &str, comment_syntax: &str) -> Result<O
             continue;
         }
 
-        if trimmed.contains(&exclude_stop) {
+        if trimmed.starts_with(&exclude_stop) {
             in_exclude_block = false;
             result.push_str(line);
             result.push('\n');
@@ -63,7 +63,7 @@ pub fn merge_synced_content(
     for line in synced_content.lines() {
         let trimmed = line.trim();
 
-        if trimmed.contains(&exclude_start) {
+        if trimmed.starts_with(&exclude_start) {
             // Use local exclude section if it exists
             if let Some(local_exclude) = local_excludes.get(exclude_index) {
                 result.push_str(local_exclude);
@@ -77,7 +77,7 @@ pub fn merge_synced_content(
             continue;
         }
 
-        if trimmed.contains(&exclude_stop) {
+        if trimmed.starts_with(&exclude_stop) {
             in_exclude_block = false;
             // Skip stop tag if we already included it with local content
             if exclude_index > 0 && local_excludes.get(exclude_index - 1).is_some() {
@@ -111,7 +111,7 @@ fn extract_exclude_sections(
     for line in content.lines() {
         let trimmed = line.trim();
 
-        if trimmed.contains(start_tag) {
+        if trimmed.starts_with(start_tag) {
             in_section = true;
             current_section.clear();
             current_section.push_str(line);
@@ -119,7 +119,7 @@ fn extract_exclude_sections(
             continue;
         }
 
-        if trimmed.contains(stop_tag) {
+        if trimmed.starts_with(stop_tag) {
             current_section.push_str(line);
             current_section.push('\n');
             sections.push(current_section.clone());
@@ -246,6 +246,27 @@ export LOCAL2="local"
         assert!(synced.contains("SHARED2"));
         assert!(!synced.contains("LOCAL1"));
         assert!(!synced.contains("LOCAL2"));
+    }
+
+    #[test]
+    fn test_leading_whitespace_tags_are_recognized() {
+        // Tags with leading whitespace (e.g. inside indented blocks) must be detected
+        let content = "export SHARED=\"shared\"\n  # drifters::exclude::start\nexport LOCAL=\"local\"\n  # drifters::exclude::stop\nexport OTHER=\"other\"\n";
+        let result = extract_syncable_content(content, "#").unwrap();
+        assert!(result.is_some());
+        let synced = result.unwrap();
+        assert!(synced.contains("export SHARED"));
+        assert!(synced.contains("export OTHER"));
+        assert!(!synced.contains("export LOCAL"));
+    }
+
+    #[test]
+    fn test_inline_tags_are_ignored() {
+        // Tags that appear after other content on the same line must NOT be treated as section delimiters
+        let content = "export VAR=\"val\"  # drifters::exclude::start\nexport OTHER=\"other\"\n";
+        let result = extract_syncable_content(content, "#").unwrap();
+        // No tags should have been detected, so the whole file is synced
+        assert!(result.is_none());
     }
 
     #[test]

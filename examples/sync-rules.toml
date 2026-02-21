@@ -1,0 +1,65 @@
+# Example sync-rules.toml
+# This file is created automatically when you run 'drifters add <app>'
+# Sync modes: "full", "markers", "jsonpath", "lines", "regex"
+
+# Example 1: Full file sync (default)
+[apps.git]
+files = ["~/.gitconfig"]
+sync_mode = "full"
+
+# Example 2: Marker-based sync for shell configs
+[apps.zsh]
+files = ["~/.zshrc", "~/.zshenv"]
+sync_mode = "markers"
+# In the files, use:
+#   #-start-sync-
+#   ...content to sync...
+#   #-stop-sync-
+
+# Example 3: JSONPath selection for structured configs (FUTURE)
+[apps.vscode]
+files = ["~/.config/Code/settings.json"]
+sync_mode = "jsonpath"
+
+[apps.vscode.selectors]
+"settings.json" = ".editor.fontSize, .editor.fontFamily, .keybindings[*]"
+
+# Example 4: With per-machine exceptions
+[apps.zed]
+files = [
+    "~/.config/zed/settings.json",
+    "~/.config/zed/keymap.json",
+]
+sync_mode = "full"
+
+# Don't sync settings.json to mac01 (has local theme preferences)
+[apps.zed.exceptions]
+mac01 = ["settings.json"]
+
+# Example 5: Vim with comment markers
+[apps.nvim]
+files = [
+    "~/.config/nvim/init.vim",
+    "~/.config/nvim/plugins.vim",
+]
+sync_mode = "markers"
+# In vim files, use:
+#   "-start-sync-
+#   ...content to sync...
+#   "-stop-sync-
+
+# Example 6: Line ranges (FUTURE)
+[apps.custom]
+files = ["~/.config/app/config.txt"]
+sync_mode = "lines"
+
+[apps.custom.selectors]
+"config.txt" = "10-50,100-150"  # Only sync these line ranges
+
+# Example 7: Regex patterns (FUTURE)
+[apps.bash]
+files = ["~/.bashrc"]
+sync_mode = "regex"
+
+[apps.bash.selectors]
+".bashrc" = "^export.*|^alias.*"  # Only sync export and alias lines

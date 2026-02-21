@@ -1,0 +1,9 @@
+# Cargo configuration for drifters
+
+[target.aarch64-apple-darwin]
+# Fix for git2 iconv linking issues on macOS
+rustflags = ["-L", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib", "-l", "iconv"]
+
+[target.x86_64-apple-darwin]
+# Fix for git2 iconv linking issues on macOS
+rustflags = ["-L", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib", "-l", "iconv"]

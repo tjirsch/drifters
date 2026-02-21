@@ -24,7 +24,8 @@ The most valuable contribution is adding app presets for popular applications. T
 # What this preset syncs and why
 #
 # Usage:
-#   Manually copy to .drifters/sync-rules.toml in your repo
+#   drifters load-preset <app>
+#   drifters import-app <app> --file presets/<app>.toml
 
 [apps.<app>]
 include = [

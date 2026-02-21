@@ -11,6 +11,7 @@ pub mod merge;
 pub mod presets;
 pub mod pull;
 pub mod push;
+pub mod remove;
 pub mod restore;
 pub mod self_update;
 pub mod status;

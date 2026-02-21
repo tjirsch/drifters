@@ -1,6 +1,6 @@
 use crate::config::{LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
-use crate::git::{commit_and_push, EphemeralRepoGuard};
+use crate::git::EphemeralRepoGuard;
 use std::fs;
 use std::path::PathBuf;
 
@@ -10,14 +10,10 @@ pub fn export_app(app_name: String, file_path: Option<PathBuf>) -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
-    // Determine file path: use provided or default to <app>.toml in config repo
-    let apps_dir = repo_path.join(".drifters").join("apps");
-    fs::create_dir_all(&apps_dir)?;
-
-    let is_default_location = file_path.is_none();
+    // Determine file path: use provided or default to <app>.toml in current directory
     let actual_file_path = match file_path {
         Some(path) => path,
-        None => apps_dir.join(format!("{}.toml", app_name)),
+        None => std::env::current_dir()?.join(format!("{}.toml", app_name)),
     };
 
     log::info!("Exporting app '{}' to {:?}", app_name, actual_file_path);
@@ -43,14 +39,6 @@ pub fn export_app(app_name: String, file_path: Option<PathBuf>) -> Result<()> {
 
     println!("\n✓ Exported '{}' to {:?}", app_name, actual_file_path);
 
-    // If saving to config repo, commit and push
-    if is_default_location {
-        println!("\nCommitting to config repo...");
-        let message = format!("Export {} app definition", app_name);
-        commit_and_push(repo_path, &message)?;
-        println!("✓ Committed and pushed to config repo");
-    }
-
     println!("\nYou can now:");
     println!("  - Edit: {:?}", actual_file_path);
     println!("  - Import: drifters import-app {}", app_name);
@@ -65,11 +53,10 @@ pub fn export_rules(file_path: Option<PathBuf>) -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
-    // Determine file path: use provided or default to sync-rules.toml (which already exists)
-    let is_default_location = file_path.is_none();
+    // Determine file path: use provided or default to sync-rules.toml in current directory
     let actual_file_path = match file_path {
         Some(path) => path,
-        None => repo_path.join(".drifters").join("sync-rules.toml"),
+        None => std::env::current_dir()?.join("sync-rules.toml"),
     };
 
     log::info!("Exporting rules to {:?}", actual_file_path);
@@ -85,12 +72,6 @@ pub fn export_rules(file_path: Option<PathBuf>) -> Result<()> {
 
     println!("\n✓ Exported rules to {:?}", actual_file_path);
     println!("  {} app(s) exported", rules.apps.len());
-
-    // Note: sync-rules.toml in config repo is already the canonical source,
-    // so we don't need to commit if that's where we exported to
-    if is_default_location {
-        println!("\n(This is the canonical sync-rules.toml - no commit needed)");
-    }
 
     println!("\nYou can now:");
     println!("  - Edit the file");

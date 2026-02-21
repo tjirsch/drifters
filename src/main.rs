@@ -46,11 +46,19 @@ enum Commands {
         app_name: Option<String>,
     },
     /// List all apps configured for sync (detailed)
-    List,
+    List {
+        /// Optional app name to show details for
+        app_name: Option<String>,
+    },
     /// List app names only
     ListApps,
     /// Print current sync-rules.toml
     ListRules,
+    /// Remove an app from sync
+    Remove {
+        /// App name to remove
+        app_name: String,
+    },
     /// Exclude a file from syncing on this machine
     Exclude {
         /// App name
@@ -82,31 +90,31 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Import app definition from file (defaults to <app>.toml in config repo)
+    /// Import app definition from file (defaults to ./<app>.toml)
     ImportApp {
         /// App name
         app_name: String,
-        /// File to import from (optional, defaults to <app>.toml)
+        /// File to import from (optional, defaults to ./<app>.toml)
         #[arg(long)]
         file: Option<std::path::PathBuf>,
     },
-    /// Export app definition to file (defaults to <app>.toml in config repo)
+    /// Export app definition to file (defaults to ./<app>.toml)
     ExportApp {
         /// App name
         app_name: String,
-        /// File to export to (optional, defaults to <app>.toml)
+        /// File to export to (optional, defaults to ./<app>.toml)
         #[arg(long)]
         file: Option<std::path::PathBuf>,
     },
-    /// Import entire sync-rules.toml from file
+    /// Import entire sync-rules.toml from file (defaults to ./sync-rules.toml)
     ImportRules {
-        /// File to import from (optional, defaults to sync-rules.toml)
+        /// File to import from (optional, defaults to ./sync-rules.toml)
         #[arg(long)]
         file: Option<std::path::PathBuf>,
     },
-    /// Export entire sync-rules.toml to file
+    /// Export entire sync-rules.toml to file (defaults to ./sync-rules.toml)
     ExportRules {
-        /// File to export to (optional, defaults to sync-rules.toml)
+        /// File to export to (optional, defaults to ./sync-rules.toml)
         #[arg(long)]
         file: Option<std::path::PathBuf>,
     },
@@ -213,14 +221,17 @@ fn main() -> Result<()> {
         Commands::Pull { app_name } => {
             cli::pull::pull_command(app_name, cli.yolo)
         }
-        Commands::List => {
-            cli::list::list_apps()
+        Commands::List { app_name } => {
+            cli::list::list_apps(app_name)
         }
         Commands::ListApps => {
             cli::list::list_apps_simple()
         }
         Commands::ListRules => {
             cli::list::list_rules()
+        }
+        Commands::Remove { app_name } => {
+            cli::remove::remove_app(app_name)
         }
         Commands::Exclude { app_name, filename } => {
             cli::exclude::exclude_file(app_name, filename)

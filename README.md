@@ -133,16 +133,30 @@ No "last write wins" - true multi-machine intelligence.
 |---------|-------------|
 | `drifters init <repo-url>` | Initialize drifters on a machine |
 | `drifters add <app>` | Add an app to sync |
+| `drifters remove <app>` | Remove an app from sync |
 | `drifters push [app]` | Push local configs to repo |
 | `drifters pull [app]` | Pull and merge configs from all machines |
 | `drifters merge [app]` | Re-merge configs using current rules |
-| `drifters import app <name> --file <path>` | Import app definition from file |
-| `drifters export app <name> --file <path>` | Export app definition to file |
-| `drifters history rules/app <name>` | Show commit history |
-| `drifters restore rules/app <name> --commit <hash>` | Restore previous version |
 | `drifters status` | Show sync status |
-| `drifters list` | List all configured apps |
+| `drifters diff [app]` | Show diff without applying changes |
+| `drifters list [app]` | List all configured apps (or details for one app) |
+| `drifters list-apps` | List app names with file counts |
+| `drifters list-rules` | Print current sync-rules.toml |
 | `drifters exclude <app> <file>` | Exclude a file on this machine |
+| **Import/Export** | |
+| `drifters import-app <name> [--file <path>]` | Import app from file (defaults to ./<name>.toml) |
+| `drifters export-app <name> [--file <path>]` | Export app to file (defaults to ./<name>.toml) |
+| `drifters import-rules [--file <path>]` | Import rules (defaults to ./sync-rules.toml) |
+| `drifters export-rules [--file <path>]` | Export rules (defaults to ./sync-rules.toml) |
+| **Presets** | |
+| `drifters list-presets` | List available presets from GitHub |
+| `drifters load-preset <name>` | Load preset from GitHub repo |
+| **History** | |
+| `drifters history rules` | Show history of sync rules |
+| `drifters history app <name>` | Show history of app definition |
+| `drifters restore rules --commit <hash>` | Restore previous rules version |
+| `drifters restore app <name> --commit <hash>` | Restore previous app version |
+| **Automation** | |
 | `drifters hook` | Generate shell hook for auto-pull |
 | `drifters self-update` | Check for and install updates from GitHub |
 
@@ -263,11 +277,14 @@ Check out [presets/](presets/) for pre-configured definitions:
 
 ### Using Presets
 
-**Recommended method (using import):**
+**Recommended method (from GitHub):**
 
 ```bash
-# Import VS Code preset directly
-drifters import app vscode --file presets/vscode.toml
+# List available presets
+drifters list-presets
+
+# Load a preset from GitHub
+drifters load-preset vscode
 
 # Apply on this machine
 drifters merge --app vscode
@@ -277,13 +294,23 @@ drifters pull
 drifters merge --app vscode
 ```
 
+**Using local preset files:**
+
+```bash
+# Import VS Code preset from local file
+drifters import-app vscode --file presets/vscode.toml
+
+# Or let it import from config repo (if already exported there)
+drifters import-app vscode
+```
+
 **Customize and re-import:**
 
 ```bash
 # Export current config, edit, re-import
-drifters export app vscode --file ~/vscode-custom.toml
+drifters export-app vscode --file ~/vscode-custom.toml
 vim ~/vscode-custom.toml
-drifters import app vscode --file ~/vscode-custom.toml
+drifters import-app vscode --file ~/vscode-custom.toml
 ```
 
 See [docs/IMPORT_EXPORT.md](docs/IMPORT_EXPORT.md) for complete guide.
@@ -382,8 +409,8 @@ A: Yes. Section tags are optional. Without them, entire files are synced (with g
 **Q: What happens if I edit sync-rules.toml on multiple machines?**
 A: Run `drifters pull` on each machine to get the latest rules, or use `drifters merge` to re-apply current rules.
 
-**Q: How do I integrate community app presets?**
-A: Use `drifters import app <name> --file <path>` to import presets. See [docs/IMPORT_EXPORT.md](docs/IMPORT_EXPORT.md).
+**Q: How do I use community app presets?**
+A: Use `drifters list-presets` to see available presets, then `drifters load-preset <name>` to import from GitHub. Or use `drifters import-app <name> --file <path>` for local files. See [docs/IMPORT_EXPORT.md](docs/IMPORT_EXPORT.md).
 
 **Q: How do I disable update checks?**
 A: Edit `~/.config/drifters/config.toml` and set `self_update_frequency = "never"`. Options are: `"never"`, `"daily"`, `"always"` (default).

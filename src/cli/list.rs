@@ -2,7 +2,7 @@ use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::Result;
 use crate::git::EphemeralRepoGuard;
 
-pub fn list_apps() -> Result<()> {
+pub fn list_apps(filter_app: Option<String>) -> Result<()> {
     log::info!("Listing apps");
 
     // Load local config
@@ -21,10 +21,26 @@ pub fn list_apps() -> Result<()> {
         return Ok(());
     }
 
-    println!("\nConfigured apps:");
+    // If filter_app is specified, only show that app
+    let apps_to_show: Vec<(&String, &crate::config::AppConfig)> = if let Some(ref filter) = filter_app {
+        if let Some(app_config) = rules.apps.get(filter) {
+            vec![(filter, app_config)]
+        } else {
+            println!("App '{}' not found in sync rules.", filter);
+            return Ok(());
+        }
+    } else {
+        rules.apps.iter().collect()
+    };
+
+    if filter_app.is_some() {
+        println!("\nApp details:");
+    } else {
+        println!("\nConfigured apps:");
+    }
     println!("{}", "=".repeat(60));
 
-    for (app_name, app_config) in &rules.apps {
+    for (app_name, app_config) in &apps_to_show {
         println!("\n{}", app_name);
 
         // Show include patterns
@@ -102,7 +118,9 @@ pub fn list_apps() -> Result<()> {
     }
 
     println!("\n{}", "=".repeat(60));
-    println!("Total apps: {}", rules.apps.len());
+    if filter_app.is_none() {
+        println!("Total apps: {}", rules.apps.len());
+    }
 
     Ok(())
 }

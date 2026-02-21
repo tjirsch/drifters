@@ -10,13 +10,11 @@ pub fn import_app(app_name: String, file_path: Option<PathBuf>) -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
-    // Determine file path: use provided or default to <app>.toml in config repo
+    // Determine file path: use provided or default to <app>.toml in current directory
     let actual_file_path = match file_path {
         Some(path) => path,
         None => {
-            let apps_dir = repo_path.join(".drifters").join("apps");
-            fs::create_dir_all(&apps_dir)?;
-            apps_dir.join(format!("{}.toml", app_name))
+            std::env::current_dir()?.join(format!("{}.toml", app_name))
         }
     };
 
@@ -73,10 +71,10 @@ pub fn import_rules(file_path: Option<PathBuf>) -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
-    // Determine file path: use provided or default to sync-rules.toml in config repo
+    // Determine file path: use provided or default to sync-rules.toml in current directory
     let actual_file_path = match file_path {
         Some(path) => path,
-        None => repo_path.join(".drifters").join("sync-rules.toml"),
+        None => std::env::current_dir()?.join("sync-rules.toml"),
     };
 
     log::info!("Importing rules from {:?}", actual_file_path);

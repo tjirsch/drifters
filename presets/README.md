@@ -11,19 +11,64 @@ This directory contains pre-configured app definitions for popular applications.
 
 ## How to Use Presets
 
-### Recommended Method: Import Command
+### Recommended Method: Load from GitHub
+
+**Step 1: List available presets**
+
+```bash
+# See all available presets
+drifters list-presets
+```
+
+**Step 2: Load the preset**
+
+```bash
+# Load Cursor preset directly from GitHub
+drifters load-preset cursor
+
+# Or VS Code
+drifters load-preset vscode
+
+# Or Windsurf
+drifters load-preset windsurf
+
+# This automatically:
+# 1. Fetches the preset from GitHub
+# 2. Adds the app to your sync-rules.toml
+# 3. Commits and pushes to your repo
+# 4. Makes it available to all machines
+```
+
+**Step 3: Apply on this machine**
+
+```bash
+# Preview what will change
+drifters merge --app vscode --dry-run
+
+# Apply the configuration
+drifters merge --app vscode
+```
+
+**Step 4: Apply on other machines**
+
+```bash
+# On each other machine:
+drifters pull              # Get updated sync-rules.toml
+drifters merge --app vscode  # Apply the new app config
+```
+
+### Alternative Method 1: Import from Local File
+
+If you have the drifters repository cloned locally:
 
 **Step 1: Import the preset**
 
 ```bash
-# Import Cursor preset
-drifters import app cursor --file presets/cursor.toml
+# Import from local preset file
+drifters import-app cursor --file presets/cursor.toml
 
 # Or VS Code
-drifters import app vscode --file presets/vscode.toml
-
-# Or Windsurf
-drifters import app windsurf --file presets/windsurf.toml
+drifters import-app vscode --file presets/vscode.toml
 
 # This automatically:
 # 1. Adds the app to your sync-rules.toml
@@ -34,10 +79,6 @@ drifters import app windsurf --file presets/windsurf.toml
 **Step 2: Apply on this machine**
 
 ```bash
-# Preview what will change
-drifters merge --app vscode --dry-run
-
-# Apply the configuration
 drifters merge --app vscode
 ```
 
@@ -45,11 +86,11 @@ drifters merge --app vscode
 
 ```bash
 # On each other machine:
-drifters pull              # Get updated sync-rules.toml
-drifters merge --app vscode  # Apply the new app config
+drifters pull
+drifters merge --app vscode
 ```
 
-### Alternative: Manual Method
+### Alternative Method 2: Manual Edit
 
 If you prefer manual control:
 
@@ -89,11 +130,28 @@ git push
 drifters merge --app vscode
 ```
 
-### Quick Example (Import Method)
+### Quick Example (Recommended: Load from GitHub)
+
+```bash
+# 1. List available presets
+drifters list-presets
+
+# 2. Load the preset
+drifters load-preset vscode
+
+# 3. Apply on this machine
+drifters merge --app vscode
+
+# 4. On other machines:
+drifters pull
+drifters merge --app vscode
+```
+
+### Quick Example (Import from Local File)
 
 ```bash
 # 1. Import the preset
-drifters import app vscode --file ~/projects/drifters/presets/vscode.toml
+drifters import-app vscode --file ~/projects/drifters/presets/vscode.toml
 
 # 2. Apply on this machine
 drifters merge --app vscode
@@ -103,7 +161,7 @@ drifters pull
 drifters merge --app vscode
 ```
 
-### Quick Example (Manual Method)
+### Quick Example (Manual Edit Method)
 
 ```bash
 # 1. Clone your config repo
@@ -167,7 +225,8 @@ Want to add a preset for your favorite app? See [CONTRIBUTING.md](../CONTRIBUTIN
 # Brief explanation of what this preset syncs
 #
 # Usage:
-#   drifters add <app>  # Then use this configuration
+#   drifters load-preset <app>
+#   drifters import-app <app> --file presets/<app>.toml
 
 [apps.<app>]
 include = [

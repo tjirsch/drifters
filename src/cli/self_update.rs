@@ -151,7 +151,12 @@ pub fn run_self_update(check_only: bool) -> Result<()> {
 fn compare_versions(v1: &str, v2: &str) -> i32 {
     let parse_version = |v: &str| -> Vec<u32> {
         v.split('.')
-            .map(|s| s.parse::<u32>().unwrap_or(0))
+            .map(|s| {
+                s.parse::<u32>().unwrap_or_else(|_| {
+                    log::debug!("Failed to parse version segment '{}' in '{}', treating as 0", s, v);
+                    0
+                })
+            })
             .collect()
     };
     let v1_parts = parse_version(v1);

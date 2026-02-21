@@ -147,6 +147,11 @@ fn add_shell_hook() -> Result<()> {
                 println!("Shell hook already present in {:?}", rc_path);
                 return Ok(());
             }
+
+            // Back up the existing file before modifying it
+            let backup_path = rc_path.with_extension("bak");
+            std::fs::copy(&rc_path, &backup_path)?;
+            log::debug!("Backed up {:?} to {:?}", rc_path, backup_path);
         }
 
         // Append hook

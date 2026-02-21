@@ -6,7 +6,6 @@ use serde::Deserialize;
 // Parse repository from Cargo.toml at compile time
 // Expected format: https://github.com/owner/repo
 const CARGO_REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
-const GITHUB_BRANCH: &str = "main";
 
 #[derive(Deserialize)]
 struct GitHubContent {
@@ -95,14 +94,12 @@ pub fn load_preset(preset_name: String) -> Result<()> {
     println!("Loading preset '{}' from GitHub...", preset_name);
 
     let (owner, repo) = parse_github_repo()?;
-
-    // Construct URL for raw file
+    let file_path = format!("presets/{}.toml", preset_name);
     let url = format!(
-        "https://raw.githubusercontent.com/{}/{}/{}/presets/{}.toml",
-        owner, repo, GITHUB_BRANCH, preset_name
+        "https://api.github.com/repos/{}/{}/contents/{}",
+        owner, repo, file_path
     );
 
-    // Fetch the preset file
     let client = reqwest::blocking::Client::builder()
         .user_agent("drifters-cli")
         .build()?;
@@ -111,12 +108,29 @@ pub fn load_preset(preset_name: String) -> Result<()> {
 
     if !response.status().is_success() {
         return Err(DriftersError::Config(format!(
-            "Failed to fetch preset '{}' from GitHub\nRepository: https://github.com/{}/{}\nPreset URL: {}\nStatus: {}",
-            preset_name, owner, repo, url, response.status()
+            "Failed to fetch preset '{}' from GitHub\nRepository: https://github.com/{}/{}\nFile: {}\nStatus: {}",
+            preset_name, owner, repo, file_path, response.status()
         )));
     }
 
-    let preset_content = response.text()?;
+    #[derive(Deserialize)]
+    struct FileContent {
+        content: String,
+    }
+
+    let file_content: FileContent = response.json()?;
+
+    // Decode base64 content (GitHub API returns file content as base64)
+    use base64::Engine;
+    let decoded_bytes = base64::engine::general_purpose::STANDARD
+        .decode(file_content.content.replace('\n', ""))
+        .map_err(|e| {
+            DriftersError::Config(format!("Failed to decode base64 content: {}", e))
+        })?;
+
+    let preset_content = String::from_utf8(decoded_bytes).map_err(|e| {
+        DriftersError::Config(format!("Failed to decode UTF-8 content: {}", e))
+    })?;
 
     // Parse the preset
     let preset_rules: SyncRules = toml::from_str(&preset_content)?;

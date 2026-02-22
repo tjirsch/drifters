@@ -17,6 +17,10 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
+    // Guard: detect stale machine IDs (caused by rename-machine / remove-machine
+    // run from another machine while this machine was offline).
+    crate::cli::common::verify_machine_registration(&config, repo_path)?;
+
     // Load sync rules
     let rules = SyncRules::load(repo_path)?;
 

@@ -19,6 +19,10 @@ pub fn merge_command(
     let repo_guard = EphemeralRepoGuard::new(&local_config)?;
     let repo_path = repo_guard.path();
 
+    // Guard: detect stale machine IDs (caused by rename-machine / remove-machine
+    // run from another machine while this machine was offline).
+    crate::cli::common::verify_machine_registration(&local_config, repo_path)?;
+
     // Load sync rules (potentially updated)
     let sync_rules = SyncRules::load(repo_path)?;
 

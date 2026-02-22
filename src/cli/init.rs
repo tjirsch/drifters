@@ -134,13 +134,13 @@ pub fn initialize(repo_url: String) -> Result<()> {
 /// Uses the detected hostname if it is not already registered;
 /// prompts the user to choose a different ID if it is taken.
 ///
-/// # Future extensions
-/// TODO(future): add `remove-machine` and `rename-machine` commands.
-/// These are non-trivial because the machine ID is used as a directory
-/// name inside `apps/<app>/machines/<id>/` in the repo, and a naive
-/// rename/delete must be scoped to those paths to avoid colliding with
-/// app names that happen to share the same string (e.g. a machine named
-/// "zed" and an app named "zed").
+/// # Post-init machine management
+/// See `drifters rename-machine <old> <new>` to rename this machine in the
+/// registry and repo, and `drifters remove-machine <id>` to deregister a
+/// machine and delete all its configs.  Both commands scope their path
+/// operations to `apps/<app>/machines/<id>/` to avoid collisions with app
+/// names that happen to share the same string (e.g. a machine named "zed"
+/// and an app named "zed").
 fn resolve_machine_id(detected: &str, registry: &MachineRegistry) -> Result<String> {
     if !registry.machines.contains_key(detected) {
         // Happy path: hostname is free — confirm or let user override

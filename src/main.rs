@@ -135,6 +135,18 @@ enum Commands {
         #[command(subcommand)]
         target: RestoreTarget,
     },
+    /// Rename a machine in the registry and repo
+    RenameMachine {
+        /// Current machine ID
+        old_id: String,
+        /// New machine ID
+        new_id: String,
+    },
+    /// Remove a machine from the registry and delete its configs
+    RemoveMachine {
+        /// Machine ID to remove
+        machine_id: String,
+    },
     /// Generate shell hook for auto-pull
     Hook,
     /// Check for and install new releases from GitHub
@@ -212,8 +224,14 @@ fn run() -> Result<()> {
             .init();
     }
 
-    // Check for updates (unless running self-update or init command)
-    if !matches!(cli.command, Commands::SelfUpdate { .. } | Commands::Init { .. }) {
+    // Check for updates (unless running self-update, init, or machine management commands)
+    if !matches!(
+        cli.command,
+        Commands::SelfUpdate { .. }
+            | Commands::Init { .. }
+            | Commands::RenameMachine { .. }
+            | Commands::RemoveMachine { .. }
+    ) {
         if let Ok(mut config) = config::LocalConfig::load() {
             let _ = cli::self_update::maybe_check_for_updates(&mut config);
         }
@@ -297,6 +315,12 @@ fn run() -> Result<()> {
             RestoreTarget::Rules { commit } => {
                 cli::restore::restore_rules(commit)
             }
+        }
+        Commands::RenameMachine { old_id, new_id } => {
+            cli::rename_machine::rename_machine(old_id, new_id)
+        }
+        Commands::RemoveMachine { machine_id } => {
+            cli::remove_machine::remove_machine(machine_id)
         }
         Commands::Hook => {
             cli::hook::generate_hook()

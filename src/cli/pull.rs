@@ -187,35 +187,35 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     Ok(())
 }
 
-/// Show a simple diff between two strings
+/// Show a simple diff between two strings.
+///
+/// Displays up to `MAX_DISPLAY` changed lines.  If the diff is larger, a
+/// summary line reports how many additional changes were omitted so the user
+/// knows the preview is incomplete.
 fn show_simple_diff(old: &str, new: &str) {
     use similar::TextDiff;
+    const MAX_DISPLAY: usize = 40;
 
     let diff = TextDiff::from_lines(old, new);
-    let mut changes = 0;
 
-    for change in diff.iter_all_changes() {
+    // Collect only the changed lines so we know the total upfront.
+    let changed_lines: Vec<_> = diff
+        .iter_all_changes()
+        .filter(|c| c.tag() != similar::ChangeTag::Equal)
+        .collect();
+    let total = changed_lines.len();
+
+    for change in changed_lines.iter().take(MAX_DISPLAY) {
         match change.tag() {
-            similar::ChangeTag::Delete => {
-                print!("    - {}", change);
-                changes += 1;
-            }
-            similar::ChangeTag::Insert => {
-                print!("    + {}", change);
-                changes += 1;
-            }
-            similar::ChangeTag::Equal => {
-                // Don't print unchanged lines in summary
-            }
-        }
-
-        if changes >= 10 {
-            println!("    ... (more changes)");
-            break;
+            similar::ChangeTag::Delete => print!("    - {}", change),
+            similar::ChangeTag::Insert => print!("    + {}", change),
+            similar::ChangeTag::Equal => {}
         }
     }
 
-    if changes == 0 {
+    if total == 0 {
         println!("    (no changes)");
+    } else if total > MAX_DISPLAY {
+        println!("    ... ({} more change(s) not shown)", total - MAX_DISPLAY);
     }
 }

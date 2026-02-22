@@ -121,7 +121,7 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
         println!("All configs are up to date");
     } else {
         println!("{} file(s) would change", total_changes);
-        println!("\nRun 'drifters pull' to apply these changes");
+        println!("\nRun 'drifters pull-app' to apply these changes");
     }
 
     Ok(())

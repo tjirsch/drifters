@@ -14,6 +14,7 @@ pub mod pull;
 pub mod push;
 pub mod remove;
 pub mod remove_machine;
+pub mod rename_app;
 pub mod rename_machine;
 pub mod restore;
 pub mod self_update;

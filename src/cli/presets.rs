@@ -183,7 +183,7 @@ pub fn load_preset(preset_name: String) -> Result<()> {
 
     println!("✓ Changes committed and pushed");
     println!(
-        "\nRun 'drifters merge --app {}' to apply the new rules",
+        "\nRun 'drifters merge-app {}' to apply the new rules",
         preset_name
     );
 

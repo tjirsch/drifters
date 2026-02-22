@@ -69,7 +69,7 @@ pub fn restore_app(app_name: String, commit: String) -> Result<()> {
 
     println!("✓ Changes committed and pushed");
     println!(
-        "\nRun 'drifters merge --app {}' to apply the restored rules",
+        "\nRun 'drifters merge-app {}' to apply the restored rules",
         app_name
     );
 
@@ -123,7 +123,7 @@ pub fn restore_rules(commit: String) -> Result<()> {
     commit_and_push(repo_path, &message)?;
 
     println!("✓ Changes committed and pushed");
-    println!("\nRun 'drifters merge' to apply the restored rules");
+    println!("\nRun 'drifters merge-app' to apply the restored rules");
 
     Ok(())
 }

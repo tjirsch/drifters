@@ -110,7 +110,7 @@ fn find_consensus_version(
     log::warn!(
         "No clear consensus ({}/{} machines agree) and current machine '{}' has no version \
          among the leaders. Using lexicographically smallest tied version as stable tie-break. \
-         Run `drifters push` to register this machine's version.",
+         Run `drifters push-app` to register this machine's version.",
         max_count,
         total_machines,
         current_machine_id

@@ -111,10 +111,11 @@ pub fn add_app(app_name: String) -> Result<()> {
 
     println!("✓ Changes committed and pushed");
     println!("\nYou can now use:");
-    println!("  drifters push {}              - push your configs for this app", app_name);
-    println!("  drifters pull {}              - pull configs from other machines", app_name);
-    println!("  drifters remove-app {}        - remove this machine's configs", app_name);
-    println!("  drifters remove-app {} --all  - remove the app from every machine", app_name);
+    println!("  drifters push-app {}              - push your configs for this app", app_name);
+    println!("  drifters pull-app {}              - pull configs from other machines", app_name);
+    println!("  drifters remove-app {}            - remove this machine's configs", app_name);
+    println!("  drifters remove-app {} --all      - remove the app from every machine", app_name);
+    println!("  drifters rename-app {} <new-name> - rename this app everywhere", app_name);
 
     Ok(())
 }

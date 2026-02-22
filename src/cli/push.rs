@@ -24,7 +24,7 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
 
     if rules.apps.is_empty() {
         println!("No apps configured for sync.");
-        println!("Use 'drifters add <app>' to add apps");
+        println!("Use 'drifters add-app <app>' to add apps");
         return Ok(());
     }
 

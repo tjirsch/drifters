@@ -36,17 +36,17 @@ enum Commands {
         app_name: String,
     },
     /// Push local configs to repository
-    Push {
+    PushApp {
         /// Optional app name to push (all if not specified)
         app_name: Option<String>,
     },
     /// Pull configs from repository
-    Pull {
+    PullApp {
         /// Optional app name to pull (all if not specified)
         app_name: Option<String>,
     },
     /// List all apps configured for sync (detailed)
-    List {
+    ListApp {
         /// Optional app name to show details for
         app_name: Option<String>,
     },
@@ -65,8 +65,15 @@ enum Commands {
         #[arg(long)]
         all: bool,
     },
+    /// Rename an app in the registry and repo
+    RenameApp {
+        /// Current app name
+        old_name: String,
+        /// New app name
+        new_name: String,
+    },
     /// Exclude a file from syncing on this machine
-    Exclude {
+    ExcludeApp {
         /// App name
         app_name: String,
         /// Filename to exclude (e.g., "settings.json")
@@ -75,12 +82,12 @@ enum Commands {
     /// Show sync status
     Status,
     /// Show diff without applying changes
-    Diff {
+    DiffApp {
         /// Optional app name to diff
         app_name: Option<String>,
     },
     /// Re-merge configs using current rules
-    Merge {
+    MergeApp {
         /// Optional app name to merge
         app_name: Option<String>,
 
@@ -250,13 +257,13 @@ fn run() -> Result<()> {
         Commands::AddApp { app_name } => {
             cli::add::add_app(app_name)
         }
-        Commands::Push { app_name } => {
+        Commands::PushApp { app_name } => {
             cli::push::push_command(app_name, cli.yolo)
         }
-        Commands::Pull { app_name } => {
+        Commands::PullApp { app_name } => {
             cli::pull::pull_command(app_name, cli.yolo)
         }
-        Commands::List { app_name } => {
+        Commands::ListApp { app_name } => {
             cli::list::list_apps(app_name)
         }
         Commands::ListApps => {
@@ -268,16 +275,19 @@ fn run() -> Result<()> {
         Commands::RemoveApp { app_name, machine, all } => {
             cli::remove::remove_app(app_name, machine, all)
         }
-        Commands::Exclude { app_name, filename } => {
+        Commands::RenameApp { old_name, new_name } => {
+            cli::rename_app::rename_app(old_name, new_name)
+        }
+        Commands::ExcludeApp { app_name, filename } => {
             cli::exclude::exclude_file(app_name, filename)
         }
         Commands::Status => {
             cli::status::show_status()
         }
-        Commands::Diff { app_name } => {
+        Commands::DiffApp { app_name } => {
             cli::diff::show_diff(app_name)
         }
-        Commands::Merge { app_name, machine, os, dry_run } => {
+        Commands::MergeApp { app_name, machine, os, dry_run } => {
             cli::merge::merge_command(app_name, machine, os, dry_run, cli.yolo)
         }
         Commands::ImportApp { app_name, file } => {

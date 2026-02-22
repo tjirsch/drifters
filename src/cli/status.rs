@@ -24,7 +24,7 @@ pub fn show_status() -> Result<()> {
 
     if rules.apps.is_empty() {
         println!("No apps configured for sync.");
-        println!("\nUse 'drifters add <app>' to add apps");
+        println!("\nUse 'drifters add-app <app>' to add apps");
         return Ok(());
     }
 
@@ -125,8 +125,8 @@ pub fn show_status() -> Result<()> {
     println!("  ↑ local changes not pushed");
     println!("  ↓ remote changes available");
     println!("  ⚠ warning/missing");
-    println!("\nRun 'drifters push' to sync local changes");
-    println!("Run 'drifters pull' to get remote changes");
+    println!("\nRun 'drifters push-app' to sync local changes");
+    println!("Run 'drifters pull-app' to get remote changes");
 
     Ok(())
 }

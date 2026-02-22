@@ -1,0 +1,38 @@
+name: Attach Checksum to Release
+
+# Fires after cargo-dist publishes a GitHub Release.
+# Downloads the shell installer, generates a SHA-256 sidecar, and
+# uploads it back to the same release.
+#
+# drifters self-update fetches and verifies this sidecar before
+# executing the installer — if the file is absent, self-update aborts.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  attach-checksum:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download installer from release
+        run: |
+          gh release download "${{ github.event.release.tag_name }}" \
+            --pattern "drifters-installer.sh" \
+            --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate SHA-256 sidecar
+        run: sha256sum drifters-installer.sh > drifters-installer.sh.sha256
+
+      - name: Upload sidecar to release
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            drifters-installer.sh.sha256 \
+            --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

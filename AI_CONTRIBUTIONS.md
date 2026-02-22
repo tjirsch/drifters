@@ -115,7 +115,7 @@ The active commit span across both sessions is approximately **15–16 hours** o
 
 > Working with Claude on this project was like having a senior engineer available around the clock — one who reads the entire codebase before touching a line, catches edge cases before they become bugs, and explains every decision. The new command structure, the safety guards, and the review process all came out of that collaboration.
 
-— Thomas Irsch, project author
+— Thomas Jrsch, project author
 
 ---
 

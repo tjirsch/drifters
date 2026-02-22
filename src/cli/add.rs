@@ -1,10 +1,20 @@
 use crate::config::{AppConfig, LocalConfig, SyncRules};
-use crate::error::Result;
+use crate::error::{DriftersError, Result};
 use crate::git::{commit_and_push, EphemeralRepoGuard};
 use std::io::{self, Write};
 
 pub fn add_app(app_name: String) -> Result<()> {
     log::info!("Adding app: {}", app_name);
+
+    // ── Validate app_name ─────────────────────────────────────────────────────
+    if app_name.is_empty() {
+        return Err(DriftersError::Config("App name cannot be empty.".to_string()));
+    }
+    if app_name.contains('/') || app_name.contains('\\') {
+        return Err(DriftersError::Config(
+            "App name cannot contain '/' or '\\'.".to_string(),
+        ));
+    }
 
     // Load local config
     let config = LocalConfig::load()?;
@@ -14,12 +24,15 @@ pub fn add_app(app_name: String) -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
+    // Guard: detect stale machine IDs
+    crate::cli::common::verify_machine_registration(&config, repo_path)?;
+
     // Load sync rules
     let mut rules = SyncRules::load(repo_path)?;
 
     // Check if app already exists
     if rules.apps.contains_key(&app_name) {
-        println!("App '{}' is already configured", app_name);
+        println!("App '{}' is already configured — no changes made.", app_name);
         return Ok(());
     }
 

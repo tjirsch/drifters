@@ -70,7 +70,22 @@ pub fn rename_app(old_name: String, new_name: String) -> Result<()> {
         return Ok(());
     }
 
-    // ── Rename apps/<old>/ → apps/<new>/ if the directory exists ─────────────
+    // ── Rename the app key in SyncRules ───────────────────────────────────────
+    // Persist the TOML change BEFORE renaming the directory so that if save()
+    // fails the on-disk layout is still intact and the repo is left clean.
+    let app_config = rules.apps.remove(&old_name).ok_or_else(|| {
+        DriftersError::Config(format!(
+            "App '{}' disappeared from rules during rename",
+            old_name
+        ))
+    })?;
+    rules.apps.insert(new_name.clone(), app_config);
+
+    // ── Persist changes ───────────────────────────────────────────────────────
+    let repo_path_buf = repo_path.to_path_buf();
+    rules.save(&repo_path_buf)?;
+
+    // ── Rename apps/<old>/ → apps/<new>/ (after TOML is safely persisted) ────
     let old_app_dir = repo_path.join("apps").join(&old_name);
     let new_app_dir = repo_path.join("apps").join(&new_name);
 
@@ -81,14 +96,6 @@ pub fn rename_app(old_name: String, new_name: String) -> Result<()> {
     } else {
         false
     };
-
-    // ── Rename the app key in SyncRules ───────────────────────────────────────
-    let app_config = rules.apps.remove(&old_name).unwrap();
-    rules.apps.insert(new_name.clone(), app_config);
-
-    // ── Persist changes ───────────────────────────────────────────────────────
-    let repo_path_buf = repo_path.to_path_buf();
-    rules.save(&repo_path_buf)?;
 
     // ── Commit and push ───────────────────────────────────────────────────────
     commit_and_push(

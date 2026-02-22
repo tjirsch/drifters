@@ -73,7 +73,9 @@ pub fn show_status() -> Result<()> {
                 (true, true, _) => {
                     // Local exists and we've pushed it
                     let local_content = fs::read(&file_path).unwrap_or_default();
-                    let remote_content = this_machine_version.unwrap().as_bytes();
+                    let remote_content = this_machine_version
+                        .expect("this_machine_version is Some in (true, true, _) match arm")
+                        .as_bytes();
 
                     if local_content == remote_content {
                         println!("  {} - ✓ up to date", filename);

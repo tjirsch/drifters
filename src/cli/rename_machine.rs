@@ -118,7 +118,12 @@ pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
     }
 
     // ── Rename entry in MachineRegistry ──────────────────────────────────────
-    let machine_info = registry.machines.remove(&old_id).unwrap();
+    let machine_info = registry.machines.remove(&old_id).ok_or_else(|| {
+        DriftersError::Config(format!(
+            "Machine '{}' disappeared from registry during rename",
+            old_id
+        ))
+    })?;
     registry.machines.insert(new_id.clone(), machine_info);
 
     // ── Persist changes ───────────────────────────────────────────────────────

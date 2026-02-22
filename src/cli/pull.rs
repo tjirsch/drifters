@@ -1,9 +1,8 @@
 use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
-use crate::git::{confirm_operation, EphemeralRepoGuard};
+use crate::git::{collect_machine_versions, confirm_operation, EphemeralRepoGuard};
 use crate::merge::intelligent_merge;
 use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
-use std::collections::HashMap;
 use std::fs;
 
 pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
@@ -76,7 +75,7 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 continue;
             }
 
-            let mut all_versions = collect_machine_versions(&machines_dir, filename)?;
+            let mut all_versions = collect_machine_versions(&machines_dir, filename, None)?;
 
             // Include the current machine's local file in the consensus if it
             // has not yet been pushed (i.e. no repo entry for this machine ID).
@@ -186,36 +185,6 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Collect all machine versions of a specific file
-fn collect_machine_versions(
-    machines_dir: &std::path::Path,
-    filename: &str,
-) -> Result<HashMap<String, String>> {
-    let mut versions = HashMap::new();
-
-    for entry in fs::read_dir(machines_dir)? {
-        let machine_dir = entry?.path();
-
-        if !machine_dir.is_dir() {
-            continue;
-        }
-
-        let machine_id = machine_dir
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string();
-
-        let file_path = machine_dir.join(filename);
-        if file_path.exists() {
-            let content = fs::read_to_string(&file_path)?;
-            versions.insert(machine_id, content);
-        }
-    }
-
-    Ok(versions)
 }
 
 /// Show a simple diff between two strings

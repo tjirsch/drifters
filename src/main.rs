@@ -31,7 +31,7 @@ enum Commands {
         repo_url: String,
     },
     /// Add an app to sync
-    Add {
+    AddApp {
         /// App name to add
         app_name: String,
     },
@@ -54,10 +54,16 @@ enum Commands {
     ListApps,
     /// Print current sync-rules.toml
     ListRules,
-    /// Remove an app from sync
-    Remove {
+    /// Remove an app's configs from this machine, a specific machine, or all machines
+    RemoveApp {
         /// App name to remove
         app_name: String,
+        /// Remove from this specific machine ID instead of the local machine
+        #[arg(long)]
+        machine: Option<String>,
+        /// Remove from ALL machines and delete the app from sync-rules entirely
+        #[arg(long)]
+        all: bool,
     },
     /// Exclude a file from syncing on this machine
     Exclude {
@@ -241,7 +247,7 @@ fn run() -> Result<()> {
         Commands::Init { repo_url } => {
             cli::init::initialize(repo_url)
         }
-        Commands::Add { app_name } => {
+        Commands::AddApp { app_name } => {
             cli::add::add_app(app_name)
         }
         Commands::Push { app_name } => {
@@ -259,8 +265,8 @@ fn run() -> Result<()> {
         Commands::ListRules => {
             cli::list::list_rules()
         }
-        Commands::Remove { app_name } => {
-            cli::remove::remove_app(app_name)
+        Commands::RemoveApp { app_name, machine, all } => {
+            cli::remove::remove_app(app_name, machine, all)
         }
         Commands::Exclude { app_name, filename } => {
             cli::exclude::exclude_file(app_name, filename)

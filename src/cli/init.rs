@@ -80,12 +80,12 @@ pub fn initialize(repo_url: String) -> Result<()> {
         println!("✓ Created sync-rules.toml");
     }
 
-    // Commit and push if we made changes
-    if is_new_repo || registry.machines.len() == 1 {
-        println!("\nCommitting changes...");
-        commit_and_push(&repo_path, &format!("Initialize drifters on {}", machine_id))?;
-        println!("✓ Changes committed and pushed");
-    }
+    // Always commit and push — machine registration must be recorded in the
+    // repo even when joining an existing repo (not just for the first machine).
+    // commit_and_push is a no-op if the tree hasn't changed (see Fix 12).
+    println!("\nCommitting changes...");
+    commit_and_push(&repo_path, &format!("Initialize drifters on {}", machine_id))?;
+    println!("✓ Changes committed and pushed");
 
     // Clean up ephemeral repo
     std::fs::remove_dir_all(&repo_path)?;

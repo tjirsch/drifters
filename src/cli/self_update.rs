@@ -5,6 +5,22 @@ use serde::Deserialize;
 const REPO: &str = "tjirsch/drifters";
 const API_URL: &str = "https://api.github.com/repos";
 
+/// A release asset (file attached to a GitHub release)
+#[derive(Deserialize)]
+struct Asset {
+    name: String,
+    browser_download_url: String,
+}
+
+/// Top-level release metadata returned by the GitHub Releases API
+#[derive(Deserialize)]
+struct Release {
+    tag_name: String,
+    html_url: String,
+    #[serde(default)]
+    assets: Vec<Asset>,
+}
+
 pub fn check_update_available(
     client: &reqwest::blocking::Client,
 ) -> Result<Option<(String, String)>> {
@@ -12,11 +28,6 @@ pub fn check_update_available(
     let response = client.get(&url).send()?;
     if !response.status().is_success() {
         return Ok(None);
-    }
-    #[derive(Deserialize)]
-    struct Release {
-        tag_name: String,
-        html_url: String,
     }
     let release: Release = response.json()?;
     let latest_version = release.tag_name.trim_start_matches('v').to_string();
@@ -68,7 +79,13 @@ pub fn maybe_check_for_updates(config: &mut LocalConfig) -> Result<()> {
     Ok(())
 }
 
-pub fn run_self_update(check_only: bool) -> Result<()> {
+/// Check for and optionally install a new release.
+///
+/// `check_only`     – print update info but do not download or install.
+/// `skip_checksum`  – skip SHA-256 verification even if no sidecar exists.
+///                    Use only if you trust the download channel and the release
+///                    predates checksum support.
+pub fn run_self_update(check_only: bool, skip_checksum: bool) -> Result<()> {
     let current_version = env!("CARGO_PKG_VERSION");
     println!("Current version: {}", current_version);
 
@@ -85,14 +102,8 @@ pub fn run_self_update(check_only: bool) -> Result<()> {
         eprintln!("URL: {}", url);
         eprintln!("Status: {}", response.status());
         return Err(crate::error::DriftersError::Config(
-            "Unable to check for updates".to_string()
+            "Unable to check for updates".to_string(),
         ));
-    }
-
-    #[derive(Deserialize)]
-    struct Release {
-        tag_name: String,
-        html_url: String,
     }
 
     let release: Release = response.json()?;
@@ -114,10 +125,68 @@ pub fn run_self_update(check_only: bool) -> Result<()> {
             "https://github.com/{}/releases/latest/download/drifters-installer.sh",
             REPO
         );
-        let installer_script = client.get(&installer_url).send()?.text()?;
+
+        // ── Download installer as raw bytes ──────────────────────────────────
+        let installer_bytes = client.get(&installer_url).send()?.bytes()?;
+
+        // ── Checksum verification ─────────────────────────────────────────────
+        // Look for a SHA-256 sidecar uploaded alongside the installer.
+        let checksum_asset = release
+            .assets
+            .iter()
+            .find(|a| a.name == "drifters-installer.sh.sha256");
+
+        match checksum_asset {
+            Some(asset) => {
+                // Sidecar found — download and compare
+                let expected_raw = client
+                    .get(&asset.browser_download_url)
+                    .send()?
+                    .text()?;
+                // sha256sum output format: "<hex>  <filename>"
+                let expected = expected_raw
+                    .trim()
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("")
+                    .to_lowercase();
+
+                use sha2::{Digest, Sha256};
+                let actual = hex::encode(Sha256::digest(&installer_bytes));
+
+                if actual != expected {
+                    return Err(crate::error::DriftersError::Config(format!(
+                        "Checksum mismatch — installer may have been tampered with.\n\
+                         Expected: {}\n\
+                         Got:      {}\n\
+                         Aborting. Download the release manually from {}",
+                        expected, actual, release.html_url
+                    )));
+                }
+                println!("✅ Checksum verified");
+            }
+            None if skip_checksum => {
+                // No sidecar but user explicitly opted in — warn and continue
+                eprintln!(
+                    "⚠️  No checksum file found in this release. \
+                     Proceeding without verification (--skip-checksum)."
+                );
+            }
+            None => {
+                // No sidecar and no explicit bypass — refuse to install
+                return Err(crate::error::DriftersError::Config(
+                    "No checksum file (drifters-installer.sh.sha256) found in this release.\n\
+                     Cannot verify installer integrity. Aborting.\n\
+                     If you are confident in the download, re-run with --skip-checksum."
+                        .to_string(),
+                ));
+            }
+        }
+
+        // ── Write and execute ─────────────────────────────────────────────────
         let temp_file = std::env::temp_dir()
             .join(format!("drifters-installer-{}.sh", std::process::id()));
-        std::fs::write(&temp_file, installer_script)?;
+        std::fs::write(&temp_file, &installer_bytes)?;
 
         #[cfg(unix)]
         {
@@ -144,7 +213,9 @@ pub fn run_self_update(check_only: bool) -> Result<()> {
         {
             let _ = std::fs::remove_file(&temp_file);
             return Err(crate::error::DriftersError::Config(
-                "Automatic installation on Windows is not yet supported. Please download and run the installer manually.".to_string(),
+                "Automatic installation on Windows is not yet supported. \
+                 Please download and run the installer manually."
+                    .to_string(),
             ));
         }
     } else {
@@ -159,7 +230,11 @@ fn compare_versions(v1: &str, v2: &str) -> i32 {
         v.split('.')
             .map(|s| {
                 s.parse::<u32>().unwrap_or_else(|_| {
-                    log::debug!("Failed to parse version segment '{}' in '{}', treating as 0", s, v);
+                    log::debug!(
+                        "Failed to parse version segment '{}' in '{}', treating as 0",
+                        s,
+                        v
+                    );
                     0
                 })
             })

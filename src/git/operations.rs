@@ -48,9 +48,11 @@ pub fn commit_and_push(repo_path: &PathBuf, message: &str) -> Result<()> {
 
     let repo = Repository::open(repo_path)?;
 
-    // Add all changes
+    // Stage all tracked and new files under the repo root.
+    // "." is the conventional git2 scope (equivalent to `git add .`).
+    // Using "*" can inadvertently match paths outside the work-tree.
     let mut index = repo.index()?;
-    index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
+    index.add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None)?;
     index.write()?;
 
     // Stage changes and build the tree

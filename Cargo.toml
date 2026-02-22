@@ -1,6 +1,6 @@
 [package]
 name = "drifters"
-version = "0.5.1"
+version = "0.5.3"
 edition = "2021"
 description = "Config file synchronization across machines"
 license = "MIT"
@@ -29,7 +29,8 @@ ratatui = "0.29"
 crossterm = "0.28"
 
 # Git operations
-git2 = "0.19"
+# "vendored-libgit2" compiles libgit2 from source so CI runners don't need a system install.
+git2 = { version = "0.20", features = ["vendored-libgit2"] }
 
 # Utilities
 chrono = { version = "0.4", features = ["serde"] }
@@ -53,9 +54,7 @@ hex = "0.4"
 [dev-dependencies]
 tempfile = "3.13"
 
-[profile.release]
-opt-level = "z"
-lto = true          # link-time optimization removes dead code across crates
-codegen-units = 1   # less parallelism, better optimization
-strip = true        # strip symbols from binary
-panic = "abort"     # smaller panic handler
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

@@ -1,6 +1,6 @@
 [package]
 name = "drifters"
-version = "0.5.7"
+version = "0.5.8"
 edition = "2021"
 description = "Config file synchronization across machines"
 license = "MIT"

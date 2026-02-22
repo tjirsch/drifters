@@ -28,12 +28,7 @@ clap = { version = "4.5", features = ["derive"] }
 ratatui = "0.29"
 crossterm = "0.28"
 
-# Git operations
-# "vendored-libgit2" compiles libgit2 from source so CI runners don't need a system install.
-# "openssl" with "vendored" statically compiles OpenSSL into the binary so the distributed
-# binary has no runtime dependency on Homebrew's libssl (avoids dyld errors on end-user Macs).
-git2 = { version = "0.20", features = ["vendored-libgit2"] }
-openssl = { version = "0.10", features = ["vendored"] }
+# Git operations — shells out to the system `git` binary (no C library dependency).
 
 # Utilities
 chrono = { version = "0.4", features = ["serde"] }

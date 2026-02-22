@@ -1,6 +1,6 @@
 use crate::config::{LocalConfig, MachineRegistry, SyncRules};
 use crate::error::{DriftersError, Result};
-use crate::git::{clone_repo, commit_and_push, init_repo};
+use crate::git::{clone_repo, commit_and_push, init_repo, set_remote_origin};
 use std::io::{self, Write};
 use std::path::PathBuf;
 
@@ -61,10 +61,10 @@ pub fn initialize(repo_url: String) -> Result<()> {
                 // If clone fails, try initializing an empty repo
                 log::warn!("Clone failed ({}), initializing empty repository", e);
                 println!("Clone failed, initializing empty repository...");
-                let repo = init_repo(&repo_path)?;
+                init_repo(&repo_path)?;
 
                 // Set up remote origin
-                repo.remote("origin", &repo_url)?;
+                set_remote_origin(&repo_path, &repo_url)?;
                 println!("✓ Empty repository initialized with remote");
                 true
             }

@@ -13,7 +13,7 @@ pub enum DriftersError {
     Io(#[from] std::io::Error),
 
     #[error("Git error: {0}")]
-    Git(#[from] git2::Error),
+    Git(String),
 
     #[error("TOML parsing error: {0}")]
     TomlParse(#[from] toml::de::Error),

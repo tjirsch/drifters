@@ -76,7 +76,26 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 continue;
             }
 
-            let all_versions = collect_machine_versions(&machines_dir, filename)?;
+            let mut all_versions = collect_machine_versions(&machines_dir, filename)?;
+
+            // Include the current machine's local file in the consensus if it
+            // has not yet been pushed (i.e. no repo entry for this machine ID).
+            // Without this, local edits made since the last `drifters push`
+            // would be invisible to the vote and could be overwritten.
+            if local_path.exists() && !all_versions.contains_key(&config.machine_id) {
+                match fs::read_to_string(&local_path) {
+                    Ok(local_content) => {
+                        log::debug!(
+                            "{}: local version added to consensus (not yet pushed)",
+                            filename
+                        );
+                        all_versions.insert(config.machine_id.clone(), local_content);
+                    }
+                    Err(e) => {
+                        log::warn!("Could not read local file {:?}: {}", local_path, e);
+                    }
+                }
+            }
 
             if all_versions.is_empty() {
                 log::debug!("No versions found for {}", filename);

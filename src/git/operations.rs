@@ -109,8 +109,10 @@ pub fn pull_latest(repo_path: &PathBuf) -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        log::warn!("git pull had issues: {}", stderr);
-        // Don't fail if pull has conflicts, we'll handle it
+        return Err(DriftersError::Git(git2::Error::from_str(&format!(
+            "Failed to pull latest changes\nError: {}",
+            stderr
+        ))));
     }
 
     log::info!("Successfully pulled latest changes");

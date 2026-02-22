@@ -65,20 +65,23 @@ pub fn confirm_operation(message: &str, default_yes: bool) -> Result<bool> {
         format!("{} [y/N]: ", message)
     };
 
-    print!("{}", prompt);
-    io::stdout().flush()?;
+    for _ in 0..3usize {
+        print!("{}", prompt);
+        io::stdout().flush()?;
 
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
 
-    let answer = input.trim().to_lowercase();
+        match input.trim().to_lowercase().as_str() {
+            "" => return Ok(default_yes),
+            "y" | "yes" => return Ok(true),
+            "n" | "no" => return Ok(false),
+            other => eprintln!("  Unrecognised input '{}'. Please type 'y' or 'n'.", other),
+        }
+    }
 
-    let confirmed = match answer.as_str() {
-        "" => default_yes,
-        "y" | "yes" => true,
-        "n" | "no" => false,
-        _ => default_yes,
-    };
-
-    Ok(confirmed)
+    // Three unrecognised inputs in a row — fall back to the safe default of "no"
+    // rather than silently applying default_yes (which is often true).
+    eprintln!("  Could not read a valid answer after 3 attempts. Treating as 'no'.");
+    Ok(false)
 }

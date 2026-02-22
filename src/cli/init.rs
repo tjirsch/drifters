@@ -14,31 +14,12 @@ pub fn initialize(repo_url: String) -> Result<()> {
         ));
     }
 
-    // Detect machine ID
+    // Detect machine ID (hostname)
     let detected_id = LocalConfig::detect_machine_id();
     println!("Detected machine: {} ({})", detected_id, std::env::consts::OS);
 
-    // Ask for confirmation or override
-    print!("Use this machine ID? [Y/n]: ");
-    io::stdout().flush()?;
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-
-    let machine_id = if input.trim().to_lowercase() == "n" || input.trim().to_lowercase() == "no" {
-        print!("Enter machine ID: ");
-        io::stdout().flush()?;
-        let mut custom_id = String::new();
-        io::stdin().read_line(&mut custom_id)?;
-        custom_id.trim().to_string()
-    } else {
-        detected_id
-    };
-
-    println!("Using machine ID: {}", machine_id);
-
     // Determine repo path
     let repo_path = get_repo_path()?;
-
     println!("Repository will be cloned to: {:?}", repo_path);
 
     // Clone or init repository
@@ -67,17 +48,24 @@ pub fn initialize(repo_url: String) -> Result<()> {
         }
     };
 
-    // Create local config (without repo_path, it's ephemeral)
-    let local_config = LocalConfig::new(machine_id.clone(), repo_url.clone());
-    local_config.save()?;
-    println!("✓ Local config saved to {:?}", LocalConfig::config_file_path()?);
-
-    // Load or create machine registry
+    // Load or create machine registry.
+    // We load this BEFORE selecting the machine ID so we can check for
+    // collisions — two machines with the same hostname would otherwise
+    // silently overwrite each other's configs.
     let mut registry = if is_new_repo {
         MachineRegistry::new()
     } else {
         MachineRegistry::load(&repo_path).unwrap_or_else(|_| MachineRegistry::new())
     };
+
+    // Resolve machine ID — uses hostname if unique, prompts if already taken
+    let machine_id = resolve_machine_id(&detected_id, &registry)?;
+    println!("Using machine ID: {}", machine_id);
+
+    // Create local config (without repo_path, it's ephemeral)
+    let local_config = LocalConfig::new(machine_id.clone(), repo_url.clone());
+    local_config.save()?;
+    println!("✓ Local config saved to {:?}", LocalConfig::config_file_path()?);
 
     // Register this machine
     let os = MachineRegistry::detect_os();
@@ -120,6 +108,65 @@ pub fn initialize(repo_url: String) -> Result<()> {
     Ok(())
 }
 
+/// Returns a machine ID that is unique within the given registry.
+///
+/// Uses the detected hostname if it is not already registered;
+/// prompts the user to choose a different ID if it is taken.
+///
+/// # Future extensions
+/// TODO(future): add `remove-machine` and `rename-machine` commands.
+/// These are non-trivial because the machine ID is used as a directory
+/// name inside `apps/<app>/machines/<id>/` in the repo, and a naive
+/// rename/delete must be scoped to those paths to avoid colliding with
+/// app names that happen to share the same string (e.g. a machine named
+/// "zed" and an app named "zed").
+fn resolve_machine_id(detected: &str, registry: &MachineRegistry) -> Result<String> {
+    if !registry.machines.contains_key(detected) {
+        // Happy path: hostname is free — confirm or let user override
+        print!("Use machine ID '{}' ? [Y/n]: ", detected);
+        io::stdout().flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let answer = input.trim().to_lowercase();
+        if answer != "n" && answer != "no" {
+            return Ok(detected.to_string());
+        }
+        // User wants a different name even though it's available
+        println!("Enter a custom machine ID:");
+    } else {
+        println!(
+            "⚠️  Machine ID '{}' is already registered in this repo.",
+            detected
+        );
+        println!("Please choose a unique ID for this machine.");
+    }
+
+    // Prompt for a unique custom ID (up to 3 attempts)
+    for attempt in 1..=3usize {
+        print!("Enter a unique machine ID (attempt {}/3): ", attempt);
+        io::stdout().flush()?;
+        let mut custom = String::new();
+        io::stdin().read_line(&mut custom)?;
+        let custom = custom.trim().to_string();
+
+        if custom.is_empty() {
+            eprintln!("  Machine ID cannot be empty.");
+        } else if custom.contains('/') || custom.contains('\\') {
+            eprintln!("  Machine ID cannot contain '/' or '\\'.");
+        } else if registry.machines.contains_key(&custom) {
+            eprintln!("  '{}' is already taken.", custom);
+        } else {
+            return Ok(custom);
+        }
+    }
+
+    Err(DriftersError::Config(
+        "Could not choose a unique machine ID after 3 attempts. \
+         Re-run `drifters init` and pick a different ID."
+            .to_string(),
+    ))
+}
+
 fn get_repo_path() -> Result<PathBuf> {
     // For init, we use a temporary location that will be cleaned up
     LocalConfig::get_temp_repo_path()
@@ -152,7 +199,10 @@ fn add_shell_hook() -> Result<()> {
             // so .zshrc -> .zshrc.bak; with_extension("bak") would produce .bak and lose the name.
             let backup_path = rc_path.with_file_name(format!(
                 "{}.bak",
-                rc_path.file_name().map(|s| s.to_string_lossy()).unwrap_or_default()
+                rc_path
+                    .file_name()
+                    .map(|s| s.to_string_lossy())
+                    .unwrap_or_default()
             ));
             std::fs::copy(&rc_path, &backup_path)?;
             log::debug!("Backed up {:?} to {:?}", rc_path, backup_path);
@@ -167,7 +217,10 @@ fn add_shell_hook() -> Result<()> {
         file.write_all(hook_line.as_bytes())?;
 
         println!("✓ Added shell hook to {:?}", rc_path);
-        println!("  Run 'source {:?}' or restart your shell to activate", rc_path);
+        println!(
+            "  Run 'source {:?}' or restart your shell to activate",
+            rc_path
+        );
     } else {
         println!("Could not detect shell config file");
         println!("Manually add this to your shell config:");

@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{DriftersError, Result};
 
 /// Extract syncable content (everything EXCEPT exclude sections)
 /// Returns the content that should be synced to other machines
@@ -33,6 +33,16 @@ pub fn extract_syncable_content(content: &str, comment_syntax: &str) -> Result<O
             result.push_str(line);
             result.push('\n');
         }
+    }
+
+    // A start tag with no matching stop tag is always a user error: it would
+    // silently exclude everything from the unclosed tag to EOF.
+    if in_exclude_block {
+        return Err(DriftersError::Config(
+            "unclosed drifters::exclude::start block \
+             (missing drifters::exclude::stop)"
+                .to_string(),
+        ));
     }
 
     if found_any_tags {
@@ -131,6 +141,16 @@ fn extract_exclude_sections(
             current_section.push_str(line);
             current_section.push('\n');
         }
+    }
+
+    // A dangling start tag means the partial section would be silently dropped,
+    // causing the local exclude content to disappear on the next pull.
+    if in_section {
+        return Err(DriftersError::Config(
+            "unclosed drifters::exclude::start block \
+             (missing drifters::exclude::stop)"
+                .to_string(),
+        ));
     }
 
     Ok(sections)
@@ -282,5 +302,32 @@ export LOCAL2="local"
         assert_eq!(detect_comment_syntax("main.rs"), "//");
         assert_eq!(detect_comment_syntax("init.lua"), "--");
         assert_eq!(detect_comment_syntax(".vimrc"), "\"");
+    }
+
+    #[test]
+    fn test_unclosed_exclude_block_extract() {
+        // A start tag with no matching stop tag must be an error, not a silent
+        // "exclude everything to EOF".
+        let content = "export SHARED=\"shared\"\n\
+                       # drifters::exclude::start\n\
+                       export LOCAL=\"local\"\n";
+        let result = extract_syncable_content(content, "#");
+        assert!(result.is_err(), "expected Err for unclosed exclude block");
+        assert!(result.unwrap_err().to_string().contains("unclosed"));
+    }
+
+    #[test]
+    fn test_unclosed_exclude_block_merge() {
+        // extract_exclude_sections is called inside merge_synced_content; an
+        // unclosed block in the local content must surface as an error so the
+        // caller knows the local file is malformed rather than silently dropping
+        // the partial exclude section.
+        let local = "# drifters::exclude::start\nexport LOCAL=\"local\"\n";
+        let synced = "export SHARED=\"shared\"\n\
+                      # drifters::exclude::start\n\
+                      # drifters::exclude::stop\n";
+        let result = merge_synced_content(local, synced, "#");
+        assert!(result.is_err(), "expected Err for unclosed exclude block in local");
+        assert!(result.unwrap_err().to_string().contains("unclosed"));
     }
 }

@@ -143,7 +143,12 @@ pub fn detect_comment_syntax(filename: &str) -> &str {
         return "\"";
     }
 
-    let ext = filename.split('.').last().unwrap_or("");
+    // Use Path::extension() rather than split('.').last() so that compound
+    // extensions like "init.lua.bak" return "bak" (correct) and not "lua".
+    let ext = std::path::Path::new(filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
 
     match ext {
         // Shell scripts, Python, Ruby, YAML, TOML

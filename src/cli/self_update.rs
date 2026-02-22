@@ -45,13 +45,12 @@ pub fn maybe_check_for_updates(config: &mut LocalConfig) -> Result<()> {
         return Ok(());
     }
     if freq == "daily" {
-        if let Some(ref last) = config.last_update_check {
-            let last_ts: u64 = last.parse().unwrap_or(0);
+        if let Some(last) = config.last_update_check {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
-            if now.saturating_sub(last_ts) < 86400 {
+            if now.saturating_sub(last) < 86400 {
                 return Ok(());
             }
         }
@@ -65,7 +64,7 @@ pub fn maybe_check_for_updates(config: &mut LocalConfig) -> Result<()> {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        config.last_update_check = Some(now.to_string());
+        config.last_update_check = Some(now);
         let _ = config.save();
     }
     if let Some((version, url)) = update {

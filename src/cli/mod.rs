@@ -1,4 +1,5 @@
 pub mod add;
+pub mod common;
 pub mod diff;
 pub mod exclude;
 pub mod export;
@@ -12,6 +13,8 @@ pub mod presets;
 pub mod pull;
 pub mod push;
 pub mod remove;
+pub mod remove_machine;
+pub mod rename_machine;
 pub mod restore;
 pub mod self_update;
 pub mod status;

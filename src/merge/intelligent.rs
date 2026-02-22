@@ -35,42 +35,37 @@ pub fn intelligent_merge(
     Ok(merged)
 }
 
-/// Find the version that appears most frequently across machines
-/// If there's a tie, prefer the current machine's version
+/// Find the version that appears most frequently across machines.
+///
+/// Tie-breaking rules (in priority order):
+/// 1. Prefer the current machine's version if it is among the leaders.
+/// 2. Otherwise, pick the lexicographically smallest content string.
+///    This is an arbitrary but *stable* rule — the same inputs always
+///    produce the same winner regardless of HashMap iteration order.
 fn find_consensus_version(
     all_versions: &HashMap<String, String>,
     current_machine_id: &str,
 ) -> Result<String> {
-    let mut version_counts: HashMap<String, Vec<String>> = HashMap::new();
-
     // Group machines by their content
+    let mut version_counts: HashMap<String, Vec<String>> = HashMap::new();
+    let mut current_machine_content: Option<String> = None;
+
     for (machine_id, content) in all_versions {
+        if machine_id == current_machine_id {
+            current_machine_content = Some(content.clone());
+        }
         version_counts
             .entry(content.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(machine_id.clone());
     }
 
-    // Find the most common version
-    let mut max_count = 0;
-    let mut consensus_content = String::new();
-    let mut current_machine_content: Option<String> = None;
-
-    for (content, machines) in version_counts {
-        if machines.contains(&current_machine_id.to_string()) {
-            current_machine_content = Some(content.clone());
-        }
-
-        if machines.len() > max_count {
-            max_count = machines.len();
-            consensus_content = content;
-        } else if machines.len() == max_count {
-            // Tie: prefer current machine's version if it's one of the tied versions
-            if machines.contains(&current_machine_id.to_string()) {
-                consensus_content = content;
-            }
-        }
-    }
+    // Find the highest vote count
+    let max_count = version_counts
+        .values()
+        .map(|machines| machines.len())
+        .max()
+        .unwrap_or(0);
 
     if max_count == 0 {
         return Err(crate::error::DriftersError::Config(
@@ -78,34 +73,50 @@ fn find_consensus_version(
         ));
     }
 
-    // If there's a clear majority (more than half), use it
+    // Collect all versions tied at the top
+    let mut top_versions: Vec<&String> = version_counts
+        .iter()
+        .filter(|(_, machines)| machines.len() == max_count)
+        .map(|(content, _)| content)
+        .collect();
+
+    // Tie-break 1: prefer the current machine's version if it is in the leaders
+    if let Some(ref cur) = current_machine_content {
+        if top_versions.contains(&cur) {
+            let total_machines = all_versions.len();
+            if max_count > total_machines / 2 {
+                return Ok(cur.clone());
+            }
+            // No clear majority but current machine is in the tie — prefer it
+            log::warn!(
+                "No clear consensus ({}/{} machines agree). \
+                 Preferring current machine's version.",
+                max_count,
+                total_machines
+            );
+            return Ok(cur.clone());
+        }
+    }
+
+    // Tie-break 2: lexicographically smallest content — deterministic, stable
+    top_versions.sort();
+    let winner = top_versions.into_iter().next().unwrap().clone();
+
     let total_machines = all_versions.len();
     if max_count > total_machines / 2 {
-        return Ok(consensus_content);
+        return Ok(winner);
     }
 
-    // Otherwise, log a warning and use the consensus
     log::warn!(
-        "No clear consensus for merge ({}/{} machines agree). Using majority version.",
+        "No clear consensus ({}/{} machines agree) and current machine '{}' has no version \
+         among the leaders. Using lexicographically smallest tied version as stable tie-break. \
+         Run `drifters push` to register this machine's version.",
         max_count,
-        total_machines
+        total_machines,
+        current_machine_id
     );
 
-    // If current machine has a version and there's no clear winner, prefer current
-    if let Some(current_content) = current_machine_content {
-        if max_count <= total_machines / 2 {
-            log::info!("Preferring current machine's version due to tie");
-            return Ok(current_content);
-        }
-    } else {
-        log::warn!(
-            "Current machine '{}' has no version in tie-break; result is non-deterministic. \
-             Run `drifters push` to register this machine's version.",
-            current_machine_id
-        );
-    }
-
-    Ok(consensus_content)
+    Ok(winner)
 }
 
 #[cfg(test)]
@@ -155,5 +166,28 @@ mod tests {
         let result =
             intelligent_merge(&versions, "machine1", "test.txt", &Default::default()).unwrap();
         assert_eq!(result, "my_version"); // Tie, prefer current machine
+    }
+
+    #[test]
+    fn test_tie_without_current_machine_is_deterministic() {
+        // Neither "aaa" nor "bbb" belongs to the current machine.
+        // The winner must always be the same regardless of HashMap insertion order.
+        let mut versions = HashMap::new();
+        versions.insert("machine1".to_string(), "bbb".to_string());
+        versions.insert("machine2".to_string(), "aaa".to_string());
+
+        let result1 =
+            intelligent_merge(&versions, "machine3", "test.txt", &Default::default()).unwrap();
+
+        // Reverse insertion order
+        let mut versions2 = HashMap::new();
+        versions2.insert("machine2".to_string(), "aaa".to_string());
+        versions2.insert("machine1".to_string(), "bbb".to_string());
+
+        let result2 =
+            intelligent_merge(&versions2, "machine3", "test.txt", &Default::default()).unwrap();
+
+        assert_eq!(result1, result2); // Must be the same
+        assert_eq!(result1, "aaa");   // Lexicographically smallest wins
     }
 }

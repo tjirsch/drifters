@@ -48,23 +48,35 @@ pub fn commit_and_push(repo_path: &PathBuf, message: &str) -> Result<()> {
 
     let repo = Repository::open(repo_path)?;
 
-    // Add all changes
+    // Stage all tracked and new files under the repo root.
+    // "." is the conventional git2 scope (equivalent to `git add .`).
+    // Using "*" can inadvertently match paths outside the work-tree.
     let mut index = repo.index()?;
-    index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
+    index.add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None)?;
     index.write()?;
 
-    // Create commit
+    // Stage changes and build the tree
     let tree_id = index.write_tree()?;
     let tree = repo.find_tree(tree_id)?;
-
-    // Get signature
-    let signature = get_signature(&repo)?;
 
     // Get parent commit (if exists)
     let parent_commit = match repo.head() {
         Ok(head) => Some(head.peel_to_commit()?),
         Err(_) => None,
     };
+
+    // Guard: if the tree is identical to the parent, there is nothing to
+    // commit. Return Ok(()) — callers that always push (e.g. init) rely on
+    // this being a no-op rather than an error when nothing changed.
+    if let Some(ref parent) = parent_commit {
+        if parent.tree_id() == tree_id {
+            log::debug!("Nothing to commit (tree unchanged), skipping push");
+            return Ok(());
+        }
+    }
+
+    // Get signature
+    let signature = get_signature(&repo)?;
 
     // Create commit
     if let Some(parent) = &parent_commit {
@@ -109,8 +121,10 @@ pub fn pull_latest(repo_path: &PathBuf) -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        log::warn!("git pull had issues: {}", stderr);
-        // Don't fail if pull has conflicts, we'll handle it
+        return Err(DriftersError::Git(git2::Error::from_str(&format!(
+            "Failed to pull latest changes\nError: {}",
+            stderr
+        ))));
     }
 
     log::info!("Successfully pulled latest changes");

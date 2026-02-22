@@ -142,6 +142,10 @@ enum Commands {
         /// Only check if an update is available; do not install
         #[arg(long)]
         check_only: bool,
+        /// Skip SHA-256 checksum verification (not recommended; use only for
+        /// releases that predate checksum support)
+        #[arg(long)]
+        skip_checksum: bool,
     },
 }
 
@@ -297,8 +301,8 @@ fn run() -> Result<()> {
         Commands::Hook => {
             cli::hook::generate_hook()
         }
-        Commands::SelfUpdate { check_only } => {
-            cli::self_update::run_self_update(check_only)
+        Commands::SelfUpdate { check_only, skip_checksum } => {
+            cli::self_update::run_self_update(check_only, skip_checksum)
         }
     }
 }

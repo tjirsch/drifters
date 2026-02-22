@@ -1,9 +1,8 @@
 use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::Result;
-use crate::git::EphemeralRepoGuard;
+use crate::git::{collect_machine_versions, EphemeralRepoGuard};
 use crate::merge::intelligent_merge;
 use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
-use std::collections::HashMap;
 use std::fs;
 
 pub fn merge_command(
@@ -173,51 +172,6 @@ pub fn merge_command(
     }
 
     Ok(())
-}
-
-/// Collect machine versions, optionally filtered by machine ID
-fn collect_machine_versions(
-    machines_dir: &std::path::Path,
-    filename: &str,
-    filter_machine: Option<&str>,
-) -> Result<HashMap<String, String>> {
-    let mut versions = HashMap::new();
-
-    if !machines_dir.exists() {
-        return Ok(versions);
-    }
-
-    for entry in fs::read_dir(machines_dir)? {
-        let machine_dir = entry?.path();
-
-        if !machine_dir.is_dir() {
-            continue;
-        }
-
-        let machine_id = machine_dir
-            .file_name()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| crate::error::DriftersError::Config(format!(
-                "Invalid machine directory name: {:?}",
-                machine_dir
-            )))?
-            .to_string();
-
-        // Apply filter if specified
-        if let Some(filter) = filter_machine {
-            if machine_id != filter {
-                continue;
-            }
-        }
-
-        let file_path = machine_dir.join(filename);
-        if file_path.exists() {
-            let content = fs::read_to_string(&file_path)?;
-            versions.insert(machine_id, content);
-        }
-    }
-
-    Ok(versions)
 }
 
 /// Show diff for a file

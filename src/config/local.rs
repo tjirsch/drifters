@@ -16,13 +16,41 @@ pub struct LocalConfig {
     #[serde(default = "default_self_update_frequency")]
     pub self_update_frequency: String,
 
-    /// Last update check timestamp (Unix epoch seconds)
+    /// Last update check timestamp (Unix epoch seconds).
+    ///
+    /// Stored as a plain integer in config.toml.  Old versions stored it as
+    /// a quoted string; `deserialize_timestamp` handles both forms so
+    /// existing configs continue to work after upgrading.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_update_check: Option<String>,
+    #[serde(deserialize_with = "deserialize_timestamp", default)]
+    pub last_update_check: Option<u64>,
 }
 
 fn default_self_update_frequency() -> String {
     "always".to_string()
+}
+
+/// Deserialize `last_update_check` from either an integer (`1708000000`) or a
+/// quoted string (`"1708000000"`).  Old drifters versions stored it as a string;
+/// this lets us migrate transparently without a config-file migration step.
+fn deserialize_timestamp<'de, D>(deserializer: D) -> std::result::Result<Option<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrU64 {
+        Num(u64),
+        Str(String),
+    }
+
+    match Option::<StringOrU64>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(StringOrU64::Num(n)) => Ok(Some(n)),
+        Some(StringOrU64::Str(s)) => Ok(s.parse::<u64>().ok()),
+    }
 }
 
 impl LocalConfig {

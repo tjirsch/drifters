@@ -1,9 +1,8 @@
 use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
-use crate::git::{confirm_operation, EphemeralRepoGuard};
+use crate::git::{collect_machine_versions, confirm_operation, EphemeralRepoGuard};
 use crate::merge::intelligent_merge;
 use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
-use std::collections::HashMap;
 use std::fs;
 
 pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
@@ -76,7 +75,26 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 continue;
             }
 
-            let all_versions = collect_machine_versions(&machines_dir, filename)?;
+            let mut all_versions = collect_machine_versions(&machines_dir, filename, None)?;
+
+            // Include the current machine's local file in the consensus if it
+            // has not yet been pushed (i.e. no repo entry for this machine ID).
+            // Without this, local edits made since the last `drifters push`
+            // would be invisible to the vote and could be overwritten.
+            if local_path.exists() && !all_versions.contains_key(&config.machine_id) {
+                match fs::read_to_string(&local_path) {
+                    Ok(local_content) => {
+                        log::debug!(
+                            "{}: local version added to consensus (not yet pushed)",
+                            filename
+                        );
+                        all_versions.insert(config.machine_id.clone(), local_content);
+                    }
+                    Err(e) => {
+                        log::warn!("Could not read local file {:?}: {}", local_path, e);
+                    }
+                }
+            }
 
             if all_versions.is_empty() {
                 log::debug!("No versions found for {}", filename);
@@ -169,65 +187,35 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     Ok(())
 }
 
-/// Collect all machine versions of a specific file
-fn collect_machine_versions(
-    machines_dir: &std::path::Path,
-    filename: &str,
-) -> Result<HashMap<String, String>> {
-    let mut versions = HashMap::new();
-
-    for entry in fs::read_dir(machines_dir)? {
-        let machine_dir = entry?.path();
-
-        if !machine_dir.is_dir() {
-            continue;
-        }
-
-        let machine_id = machine_dir
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string();
-
-        let file_path = machine_dir.join(filename);
-        if file_path.exists() {
-            let content = fs::read_to_string(&file_path)?;
-            versions.insert(machine_id, content);
-        }
-    }
-
-    Ok(versions)
-}
-
-/// Show a simple diff between two strings
+/// Show a simple diff between two strings.
+///
+/// Displays up to `MAX_DISPLAY` changed lines.  If the diff is larger, a
+/// summary line reports how many additional changes were omitted so the user
+/// knows the preview is incomplete.
 fn show_simple_diff(old: &str, new: &str) {
     use similar::TextDiff;
+    const MAX_DISPLAY: usize = 40;
 
     let diff = TextDiff::from_lines(old, new);
-    let mut changes = 0;
 
-    for change in diff.iter_all_changes() {
+    // Collect only the changed lines so we know the total upfront.
+    let changed_lines: Vec<_> = diff
+        .iter_all_changes()
+        .filter(|c| c.tag() != similar::ChangeTag::Equal)
+        .collect();
+    let total = changed_lines.len();
+
+    for change in changed_lines.iter().take(MAX_DISPLAY) {
         match change.tag() {
-            similar::ChangeTag::Delete => {
-                print!("    - {}", change);
-                changes += 1;
-            }
-            similar::ChangeTag::Insert => {
-                print!("    + {}", change);
-                changes += 1;
-            }
-            similar::ChangeTag::Equal => {
-                // Don't print unchanged lines in summary
-            }
-        }
-
-        if changes >= 10 {
-            println!("    ... (more changes)");
-            break;
+            similar::ChangeTag::Delete => print!("    - {}", change),
+            similar::ChangeTag::Insert => print!("    + {}", change),
+            similar::ChangeTag::Equal => {}
         }
     }
 
-    if changes == 0 {
+    if total == 0 {
         println!("    (no changes)");
+    } else if total > MAX_DISPLAY {
+        println!("    ... ({} more change(s) not shown)", total - MAX_DISPLAY);
     }
 }

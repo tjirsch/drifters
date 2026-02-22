@@ -53,18 +53,28 @@ pub fn commit_and_push(repo_path: &PathBuf, message: &str) -> Result<()> {
     index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
     index.write()?;
 
-    // Create commit
+    // Stage changes and build the tree
     let tree_id = index.write_tree()?;
     let tree = repo.find_tree(tree_id)?;
-
-    // Get signature
-    let signature = get_signature(&repo)?;
 
     // Get parent commit (if exists)
     let parent_commit = match repo.head() {
         Ok(head) => Some(head.peel_to_commit()?),
         Err(_) => None,
     };
+
+    // Guard: if the tree is identical to the parent, there is nothing to
+    // commit. Return Ok(()) — callers that always push (e.g. init) rely on
+    // this being a no-op rather than an error when nothing changed.
+    if let Some(ref parent) = parent_commit {
+        if parent.tree_id() == tree_id {
+            log::debug!("Nothing to commit (tree unchanged), skipping push");
+            return Ok(());
+        }
+    }
+
+    // Get signature
+    let signature = get_signature(&repo)?;
 
     // Create commit
     if let Some(parent) = &parent_commit {

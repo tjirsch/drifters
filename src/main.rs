@@ -31,22 +31,22 @@ enum Commands {
         repo_url: String,
     },
     /// Add an app to sync
-    Add {
+    AddApp {
         /// App name to add
         app_name: String,
     },
     /// Push local configs to repository
-    Push {
+    PushApp {
         /// Optional app name to push (all if not specified)
         app_name: Option<String>,
     },
     /// Pull configs from repository
-    Pull {
+    PullApp {
         /// Optional app name to pull (all if not specified)
         app_name: Option<String>,
     },
     /// List all apps configured for sync (detailed)
-    List {
+    ListApp {
         /// Optional app name to show details for
         app_name: Option<String>,
     },
@@ -54,13 +54,26 @@ enum Commands {
     ListApps,
     /// Print current sync-rules.toml
     ListRules,
-    /// Remove an app from sync
-    Remove {
+    /// Remove an app's configs from this machine, a specific machine, or all machines
+    RemoveApp {
         /// App name to remove
         app_name: String,
+        /// Remove from this specific machine ID instead of the local machine
+        #[arg(long)]
+        machine: Option<String>,
+        /// Remove from ALL machines and delete the app from sync-rules entirely
+        #[arg(long)]
+        all: bool,
+    },
+    /// Rename an app in the registry and repo
+    RenameApp {
+        /// Current app name
+        old_name: String,
+        /// New app name
+        new_name: String,
     },
     /// Exclude a file from syncing on this machine
-    Exclude {
+    ExcludeApp {
         /// App name
         app_name: String,
         /// Filename to exclude (e.g., "settings.json")
@@ -69,12 +82,12 @@ enum Commands {
     /// Show sync status
     Status,
     /// Show diff without applying changes
-    Diff {
+    DiffApp {
         /// Optional app name to diff
         app_name: Option<String>,
     },
     /// Re-merge configs using current rules
-    Merge {
+    MergeApp {
         /// Optional app name to merge
         app_name: Option<String>,
 
@@ -134,6 +147,18 @@ enum Commands {
     Restore {
         #[command(subcommand)]
         target: RestoreTarget,
+    },
+    /// Rename a machine in the registry and repo
+    RenameMachine {
+        /// Current machine ID
+        old_id: String,
+        /// New machine ID
+        new_id: String,
+    },
+    /// Remove a machine from the registry and delete its configs
+    RemoveMachine {
+        /// Machine ID to remove
+        machine_id: String,
     },
     /// Generate shell hook for auto-pull
     Hook,
@@ -212,8 +237,14 @@ fn run() -> Result<()> {
             .init();
     }
 
-    // Check for updates (unless running self-update or init command)
-    if !matches!(cli.command, Commands::SelfUpdate { .. } | Commands::Init { .. }) {
+    // Check for updates (unless running self-update, init, or machine management commands)
+    if !matches!(
+        cli.command,
+        Commands::SelfUpdate { .. }
+            | Commands::Init { .. }
+            | Commands::RenameMachine { .. }
+            | Commands::RemoveMachine { .. }
+    ) {
         if let Ok(mut config) = config::LocalConfig::load() {
             let _ = cli::self_update::maybe_check_for_updates(&mut config);
         }
@@ -223,16 +254,16 @@ fn run() -> Result<()> {
         Commands::Init { repo_url } => {
             cli::init::initialize(repo_url)
         }
-        Commands::Add { app_name } => {
+        Commands::AddApp { app_name } => {
             cli::add::add_app(app_name)
         }
-        Commands::Push { app_name } => {
+        Commands::PushApp { app_name } => {
             cli::push::push_command(app_name, cli.yolo)
         }
-        Commands::Pull { app_name } => {
+        Commands::PullApp { app_name } => {
             cli::pull::pull_command(app_name, cli.yolo)
         }
-        Commands::List { app_name } => {
+        Commands::ListApp { app_name } => {
             cli::list::list_apps(app_name)
         }
         Commands::ListApps => {
@@ -241,19 +272,22 @@ fn run() -> Result<()> {
         Commands::ListRules => {
             cli::list::list_rules()
         }
-        Commands::Remove { app_name } => {
-            cli::remove::remove_app(app_name)
+        Commands::RemoveApp { app_name, machine, all } => {
+            cli::remove::remove_app(app_name, machine, all)
         }
-        Commands::Exclude { app_name, filename } => {
+        Commands::RenameApp { old_name, new_name } => {
+            cli::rename_app::rename_app(old_name, new_name)
+        }
+        Commands::ExcludeApp { app_name, filename } => {
             cli::exclude::exclude_file(app_name, filename)
         }
         Commands::Status => {
             cli::status::show_status()
         }
-        Commands::Diff { app_name } => {
+        Commands::DiffApp { app_name } => {
             cli::diff::show_diff(app_name)
         }
-        Commands::Merge { app_name, machine, os, dry_run } => {
+        Commands::MergeApp { app_name, machine, os, dry_run } => {
             cli::merge::merge_command(app_name, machine, os, dry_run, cli.yolo)
         }
         Commands::ImportApp { app_name, file } => {
@@ -297,6 +331,12 @@ fn run() -> Result<()> {
             RestoreTarget::Rules { commit } => {
                 cli::restore::restore_rules(commit)
             }
+        }
+        Commands::RenameMachine { old_id, new_id } => {
+            cli::rename_machine::rename_machine(old_id, new_id)
+        }
+        Commands::RemoveMachine { machine_id } => {
+            cli::remove_machine::remove_machine(machine_id)
         }
         Commands::Hook => {
             cli::hook::generate_hook()

@@ -15,12 +15,16 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
+    // Guard: detect stale machine IDs (caused by rename-machine / remove-machine
+    // run from another machine while this machine was offline).
+    crate::cli::common::verify_machine_registration(&config, repo_path)?;
+
     // Load sync rules
     let rules = SyncRules::load(repo_path)?;
 
     if rules.apps.is_empty() {
         println!("No apps configured for sync.");
-        println!("Use 'drifters add <app>' to add apps");
+        println!("Use 'drifters add-app <app>' to add apps");
         return Ok(());
     }
 

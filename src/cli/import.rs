@@ -58,7 +58,7 @@ pub fn import_app(app_name: String, file_path: Option<PathBuf>) -> Result<()> {
 
     println!("✓ Changes committed and pushed");
     println!(
-        "\nRun 'drifters merge --app {}' to apply the new rules",
+        "\nRun 'drifters merge-app {}' to apply the new rules",
         app_name
     );
 
@@ -95,7 +95,7 @@ pub fn import_rules(file_path: Option<PathBuf>) -> Result<()> {
     commit_and_push(repo_path, message)?;
 
     println!("✓ Changes committed and pushed");
-    println!("\nRun 'drifters merge' to apply the new rules");
+    println!("\nRun 'drifters merge-app' to apply the new rules");
 
     Ok(())
 }

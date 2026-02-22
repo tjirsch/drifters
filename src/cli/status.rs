@@ -15,12 +15,16 @@ pub fn show_status() -> Result<()> {
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
+    // Guard: detect stale machine IDs (caused by rename-machine / remove-machine
+    // run from another machine while this machine was offline).
+    crate::cli::common::verify_machine_registration(&config, repo_path)?;
+
     // Load sync rules
     let rules = SyncRules::load(repo_path)?;
 
     if rules.apps.is_empty() {
         println!("No apps configured for sync.");
-        println!("\nUse 'drifters add <app>' to add apps");
+        println!("\nUse 'drifters add-app <app>' to add apps");
         return Ok(());
     }
 
@@ -121,8 +125,8 @@ pub fn show_status() -> Result<()> {
     println!("  ↑ local changes not pushed");
     println!("  ↓ remote changes available");
     println!("  ⚠ warning/missing");
-    println!("\nRun 'drifters push' to sync local changes");
-    println!("Run 'drifters pull' to get remote changes");
+    println!("\nRun 'drifters push-app' to sync local changes");
+    println!("Run 'drifters pull-app' to get remote changes");
 
     Ok(())
 }

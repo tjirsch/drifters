@@ -4,6 +4,26 @@ use crate::git::{clone_repo, commit_and_push, init_repo};
 use std::io::{self, Write};
 use std::path::PathBuf;
 
+/// RAII guard that deletes a directory tree on Drop.
+///
+/// Used in `initialize` to ensure the ephemeral temp repo is always cleaned
+/// up, even when an early `return Err(...)` is hit after the clone/init.
+/// `EphemeralRepoGuard` cannot be reused here because it also calls
+/// `pull_latest`, which is wrong during a fresh init.
+struct TempDirGuard(PathBuf);
+
+impl Drop for TempDirGuard {
+    fn drop(&mut self) {
+        if self.0.exists() {
+            if let Err(e) = std::fs::remove_dir_all(&self.0) {
+                log::warn!("Failed to clean up temp dir {:?}: {}", self.0, e);
+            } else {
+                log::debug!("Cleaned up temporary repo at {:?}", self.0);
+            }
+        }
+    }
+}
+
 pub fn initialize(repo_url: String) -> Result<()> {
     log::info!("Initializing drifters with repo: {}", repo_url);
 
@@ -21,6 +41,9 @@ pub fn initialize(repo_url: String) -> Result<()> {
     // Determine repo path
     let repo_path = get_repo_path()?;
     println!("Repository will be cloned to: {:?}", repo_path);
+
+    // RAII cleanup guard — deletes repo_path on Drop, even on early return
+    let _cleanup = TempDirGuard(repo_path.clone());
 
     // Clone or init repository
     let is_new_repo = if repo_path.exists() {
@@ -86,10 +109,8 @@ pub fn initialize(repo_url: String) -> Result<()> {
     println!("\nCommitting changes...");
     commit_and_push(&repo_path, &format!("Initialize drifters on {}", machine_id))?;
     println!("✓ Changes committed and pushed");
-
-    // Clean up ephemeral repo
-    std::fs::remove_dir_all(&repo_path)?;
-    log::debug!("Cleaned up temporary repo at {:?}", repo_path);
+    // Temp repo is cleaned up by `_cleanup` (TempDirGuard) when it goes out
+    // of scope at the end of this function.
 
     // Ask about shell hook
     println!("\nSetup complete!");

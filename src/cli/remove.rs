@@ -30,6 +30,9 @@ pub fn remove_app(app_name: String, machine: Option<String>, all: bool) -> Resul
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
+    // Guard: detect stale machine IDs
+    crate::cli::common::verify_machine_registration(&config, repo_path)?;
+
     let mut rules = SyncRules::load(repo_path)?;
 
     if !rules.apps.contains_key(&app_name) {

@@ -1,6 +1,97 @@
 use crate::config::{LocalConfig, MachineRegistry};
 use crate::error::{DriftersError, Result};
 use std::io::{self, Write};
+use std::path::Path;
+
+/// Open a file using `preferred_editor`, falling back to `$EDITOR`, then the OS default.
+///
+/// Priority:
+/// 1. `preferred_editor` argument (from `LocalConfig.preferred_editor`)
+/// 2. `$EDITOR` environment variable
+/// 3. OS default: `open` on macOS, `xdg-open` on Linux, `cmd /C start` on Windows
+///
+/// On macOS, if the named editor binary is not found on `PATH`, falls back to
+/// `open -a <editor> <file>` so GUI apps (Zed, VS Code, etc.) can be found by
+/// their app-bundle name even when their CLI wrapper is absent.
+pub fn open_file(path: &Path, preferred_editor: Option<&str>) -> Result<()> {
+    let path_str = path.to_str().ok_or_else(|| {
+        DriftersError::Config(format!(
+            "File path {:?} contains non-UTF-8 characters",
+            path
+        ))
+    })?;
+
+    let editor_env = std::env::var("EDITOR").ok();
+    let editor = preferred_editor.or_else(|| editor_env.as_deref());
+
+    if let Some(editor) = editor {
+        println!("   Opening '{}' with '{}'...", path_str, editor);
+        let result = std::process::Command::new(editor).arg(path).status();
+        match result {
+            Ok(_) => return Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                #[cfg(target_os = "macos")]
+                {
+                    let open_result = std::process::Command::new("open")
+                        .args(["-a", editor, path_str])
+                        .status();
+                    if open_result.map(|s| s.success()).unwrap_or(false) {
+                        return Ok(());
+                    }
+                }
+                return Err(DriftersError::Config(format!(
+                    "Editor '{}' not found — is it installed and on your PATH?\n\
+                     Hint: set preferred_editor to the full path in ~/.config/drifters/config.toml\n\
+                     e.g.  preferred_editor = \"/usr/local/bin/zed\"",
+                    editor
+                )));
+            }
+            Err(e) => {
+                return Err(DriftersError::Config(format!(
+                    "Failed to launch editor '{}': {}",
+                    editor, e
+                )))
+            }
+        }
+    }
+
+    // No editor configured — use OS default
+    #[cfg(target_os = "macos")]
+    {
+        println!("   Opening '{}' with system default app...", path_str);
+        std::process::Command::new("open")
+            .arg(path_str)
+            .status()
+            .map_err(|e| {
+                DriftersError::Config(format!("Failed to open '{}' with 'open': {}", path_str, e))
+            })?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        println!("   Opening '{}' with xdg-open...", path_str);
+        if std::process::Command::new("xdg-open")
+            .arg(path_str)
+            .status()
+            .is_err()
+        {
+            return Err(DriftersError::Config(format!(
+                "Could not open '{}': xdg-open failed and neither preferred_editor nor $EDITOR is set",
+                path_str
+            )));
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        println!("   Opening '{}' with system default app...", path_str);
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", path_str])
+            .status()
+            .map_err(|e| {
+                DriftersError::Config(format!("Failed to open '{}': {}", path_str, e))
+            })?;
+    }
+    Ok(())
+}
 
 /// Verify that the local machine ID is still registered in the shared repo.
 ///

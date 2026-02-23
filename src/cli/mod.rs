@@ -1,5 +1,6 @@
 pub mod add;
 pub mod common;
+pub mod completion;
 pub mod diff;
 pub mod exclude;
 pub mod export;
@@ -9,6 +10,7 @@ pub mod import;
 pub mod init;
 pub mod list;
 pub mod merge;
+pub mod open_readme;
 pub mod presets;
 pub mod pull;
 pub mod push;

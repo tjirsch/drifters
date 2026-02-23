@@ -1,13 +1,13 @@
 [package]
 name = "drifters"
-version = "0.5.8"
+version = "0.6.0"
 edition = "2021"
 description = "Config file synchronization across machines"
 license = "MIT"
 repository = "https://github.com/tjirsch/drifters"
 # documentation = "https://docs.drifter.rs"
 # homepage = "https://drifter.rs"
-keywords = ["config", "synchronization", "sync", "config-sync"]
+keywords = ["config", "synchronization", "config-management"]
 authors = ["Thomas Jirsch"]
 categories = ["command-line-utilities", "config"]
 

@@ -41,7 +41,7 @@ pub fn open_file(path: &Path, preferred_editor: Option<&str>) -> Result<()> {
                 }
                 return Err(DriftersError::Config(format!(
                     "Editor '{}' not found — is it installed and on your PATH?\n\
-                     Hint: set preferred_editor to the full path in ~/.config/drifters/config.toml\n\
+                     Hint: set preferred_editor to the full path in ~/.config/drifters/drifters.toml\n\
                      e.g.  preferred_editor = \"/usr/local/bin/zed\"",
                     editor
                 )));
@@ -97,7 +97,7 @@ pub fn open_file(path: &Path, preferred_editor: Option<&str>) -> Result<()> {
 ///
 /// This guards against the case where another machine runs `rename-machine` or
 /// `remove-machine` while this machine is offline — leaving this machine's
-/// `~/.config/drifters/config.toml` holding a stale ID.
+/// `~/.config/drifters/drifters.toml` holding a stale ID.
 ///
 /// Call this after `EphemeralRepoGuard::new()` in any command that depends on
 /// the machine ID being valid (push, pull, status, diff, merge, …).
@@ -160,3 +160,4 @@ pub fn verify_machine_registration(
         }
     }
 }
+

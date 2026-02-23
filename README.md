@@ -173,6 +173,15 @@ No "last write wins" - true multi-machine intelligence.
 | **Automation** | |
 | `drifters hook` | Generate shell hook for auto-pull |
 | `drifters self-update` | Check for and install updates from GitHub |
+| `drifters self-update --check-only` | Check for updates without installing |
+| `drifters self-update --no-download-readme` | Install without downloading README |
+| `drifters self-update --no-open-readme` | Download README but do not open it |
+| `drifters open-readme` | Download latest README and open it |
+| `drifters completion <shell>` | Print shell completion script to stdout |
+| `drifters completion <shell> --install` | Install completion script to default location |
+| `drifters set-preferred-editor <editor>` | Set preferred editor in `drifters.toml` |
+| `drifters set-preferred-editor --clear` | Clear the preferred editor setting |
+| `drifters set-preferred-editor` | Show current preferred editor setting |
 
 ### The `merge-app` Command
 
@@ -197,6 +206,57 @@ drifters merge-app --os linux
 - `--yolo` - Skip all confirmations (use with caution)
 - `-v, --verbose` - Show detailed logging
 - `-V, --version` - Print version and exit
+
+## Configuration (~/.config/drifters/drifters.toml)
+
+User-level parameters live in **`~/.config/drifters/drifters.toml`**. This file is created automatically on first run with default values. If it is missing it is recreated with defaults.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `self_update_frequency` | `"always"` | When to auto-check for updates: `never`, `always`, or `daily` (at most once per 24 hours). The check is check-only — no install, no README. |
+| `preferred_editor` | *(none)* | Editor command used to open files (e.g. `"zed"`, `"code"`, `"vim"`). Falls back to `$EDITOR` env var, then the OS default app. |
+
+Example (optional; the file is created automatically):
+
+```toml
+self_update_frequency = "daily"
+preferred_editor = "zed"
+```
+
+Use `drifters set-preferred-editor <editor>` to set the editor from the command line instead of editing the file directly.
+
+### Shell Completion
+
+Generate tab-completion for your shell (`bash`, `zsh`, `fish`, `powershell`):
+
+```bash
+# Print to stdout and add manually
+drifters completion bash >> ~/.bash_completion
+drifters completion zsh >> ~/.zshrc
+
+# Auto-install to the canonical shell location
+drifters completion zsh --install
+# → installs to ~/.zsh/completions/_drifters
+# → prints fpath setup instructions
+
+drifters completion fish --install
+# → installs to ~/.config/fish/completions/drifters.fish
+```
+
+**Install locations for `--install`:**
+
+| Shell | Path |
+|-------|------|
+| bash | `~/.local/share/bash-completion/completions/drifters` |
+| zsh | `~/.zsh/completions/_drifters` |
+| fish | `~/.config/fish/completions/drifters.fish` |
+| powershell | `%USERPROFILE%\Documents\PowerShell\Completions\drifters.ps1` |
+
+For zsh, add this to `~/.zshrc` if not already present:
+```zsh
+fpath=(~/.zsh/completions $fpath)
+autoload -Uz compinit && compinit
+```
 
 ## Configuration Example
 
@@ -416,7 +476,7 @@ Drifters uses your own private Git repository as storage. **Never commit secrets
 
 - Only use `drifters self-update` against the official repository (`github.com/tjirsch/drifters`)
 - Alternatively, install updates manually via `cargo install drifters` or by downloading a release binary directly
-- You can disable automatic update checks entirely: set `self_update_frequency = "never"` in `~/.config/drifters/config.toml`
+- You can disable automatic update checks entirely: set `self_update_frequency = "never"` in `~/.config/drifters/drifters.toml`
 - Use `--skip-checksum` only if you are installing from a release that predates sidecar support
 
 ### Shell Hook
@@ -447,7 +507,7 @@ A: Run `drifters pull` on each machine to get the latest rules, or use `drifters
 A: Use `drifters list-presets` to see available presets, then `drifters load-preset <name>` to import from GitHub. Or use `drifters import-app <name> --file <path>` for local files. See [docs/IMPORT_EXPORT.md](docs/IMPORT_EXPORT.md).
 
 **Q: How do I disable update checks?**
-A: Edit `~/.config/drifters/config.toml` and set `self_update_frequency = "never"`. Options are: `"never"`, `"daily"`, `"always"` (default).
+A: Edit `~/.config/drifters/drifters.toml` and set `self_update_frequency = "never"`. Options are: `"never"`, `"daily"`, `"always"` (default).
 
 ## Troubleshooting
 
@@ -470,7 +530,7 @@ drifters <command>
 
 ```bash
 # View local config
-cat ~/.config/drifters/config.toml
+cat ~/.config/drifters/drifters.toml
 
 # View sync rules
 drifters list-app
@@ -525,6 +585,9 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - `rename-machine` / `remove-machine` with cross-machine stale-ID detection
 - `rename-app` / extended `remove-app` with `--machine` and `--all` scoping
 - Consistent verb-object CLI naming convention
+- Shell completion (`bash`, `zsh`, `fish`, `powershell`) via `completion <shell> [--install]`
+- `open-readme` command to download and open latest README
+- `preferred_editor` config option with `set-preferred-editor` command
 - `discover-presets` for auto-detecting installed apps
 - `-V / --version` flag
 - No C library dependencies — git operations shell out to system `git`
@@ -533,7 +596,6 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - TUI diff viewer with syntax highlighting (currently text-based)
 - Improved conflict resolution UI
 - Community preset registry
-- Shell completion (bash/zsh/fish)
 - Config validation and linting
 - Integration tests with real repos
 

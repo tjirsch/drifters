@@ -189,6 +189,14 @@ enum Commands {
         #[arg(long)]
         install: bool,
     },
+    /// Set (or clear) the preferred editor in local config
+    SetPreferredEditor {
+        /// Editor command to use (e.g. "code", "zed", "vim"). Omit to show current value.
+        editor: Option<String>,
+        /// Remove the preferred_editor setting (fall back to $EDITOR / OS default)
+        #[arg(long)]
+        clear: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -263,6 +271,7 @@ fn run() -> Result<()> {
             | Commands::RemoveMachine { .. }
             | Commands::OpenReadme
             | Commands::Completion { .. }
+            | Commands::SetPreferredEditor { .. }
     ) {
         if let Ok(mut config) = config::LocalConfig::load() {
             let _ = cli::self_update::maybe_check_for_updates(&mut config);
@@ -380,6 +389,24 @@ fn run() -> Result<()> {
         }
         Commands::Completion { shell, install } => {
             cli::completion::run_completion(&shell, install)
+        }
+        Commands::SetPreferredEditor { editor, clear } => {
+            let mut config = config::LocalConfig::load()?;
+            if clear {
+                config.preferred_editor = None;
+                config.save()?;
+                println!("✅ preferred_editor cleared (will fall back to $EDITOR / OS default).");
+            } else if let Some(e) = editor {
+                config.preferred_editor = Some(e.clone());
+                config.save()?;
+                println!("✅ preferred_editor set to \"{}\".", e);
+            } else {
+                match &config.preferred_editor {
+                    Some(e) => println!("preferred_editor = \"{}\"", e),
+                    None => println!("preferred_editor is not set (using $EDITOR / OS default)."),
+                }
+            }
+            Ok(())
         }
     }
 }

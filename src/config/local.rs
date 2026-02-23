@@ -101,7 +101,7 @@ impl LocalConfig {
     pub fn config_file_path() -> Result<PathBuf> {
         let home = dirs::home_dir()
             .ok_or_else(|| DriftersError::Config("Could not find home directory".to_string()))?;
-        Ok(home.join(".config").join("drifters").join("config.toml"))
+        Ok(home.join(".config").join("drifters").join("drifters.toml"))
     }
 
     pub fn get_temp_repo_path() -> Result<PathBuf> {

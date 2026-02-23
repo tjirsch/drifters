@@ -11,6 +11,7 @@ use error::Result;
 
 #[derive(Parser)]
 #[command(name = "drifters")]
+#[command(version)]
 #[command(about = "Config file synchronization across machines", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -50,8 +51,6 @@ enum Commands {
         /// Optional app name to show details for
         app_name: Option<String>,
     },
-    /// List app names only
-    ListApps,
     /// Print current sync-rules.toml
     ListRules,
     /// Remove an app's configs from this machine, a specific machine, or all machines
@@ -138,6 +137,8 @@ enum Commands {
         /// Preset name (e.g., "zed", "vscode")
         preset_name: String,
     },
+    /// Auto-detect installed apps on this machine and offer to add them from presets
+    DiscoverPresets,
     /// Show history of rules or app
     History {
         #[command(subcommand)]
@@ -266,9 +267,6 @@ fn run() -> Result<()> {
         Commands::ListApp { app_name } => {
             cli::list::list_apps(app_name)
         }
-        Commands::ListApps => {
-            cli::list::list_apps_simple()
-        }
         Commands::ListRules => {
             cli::list::list_rules()
         }
@@ -307,6 +305,9 @@ fn run() -> Result<()> {
         }
         Commands::LoadPreset { preset_name } => {
             cli::presets::load_preset(preset_name)
+        }
+        Commands::DiscoverPresets => {
+            cli::presets::discover_presets()
         }
         Commands::History { target } => match target {
             HistoryTarget::Rules { limit, commit } => {

@@ -125,49 +125,6 @@ pub fn list_apps(filter_app: Option<String>) -> Result<()> {
     Ok(())
 }
 
-pub fn list_apps_simple() -> Result<()> {
-    log::info!("Listing apps (simple)");
-
-    // Load local config
-    let config = LocalConfig::load()?;
-
-    // Set up ephemeral repo
-    println!("Fetching latest sync rules...");
-    let repo_guard = EphemeralRepoGuard::new(&config)?;
-    let repo_path = repo_guard.path();
-
-    // Load sync rules
-    let rules = SyncRules::load(repo_path)?;
-
-    if rules.apps.is_empty() {
-        println!("No apps configured for sync.");
-        return Ok(());
-    }
-
-    println!("\nConfigured apps ({}):", rules.apps.len());
-    let mut app_names: Vec<_> = rules.apps.keys().collect();
-    app_names.sort();
-
-    for app_name in app_names {
-        // Show resolved file count for this machine
-        let app_config = rules.apps.get(app_name).unwrap();
-        let fileset = resolve_fileset(
-            app_config,
-            &config.machine_id,
-            std::env::consts::OS,
-        )?;
-
-        let file_count = fileset.len();
-        if file_count > 0 {
-            println!("  {} ({} file{})", app_name, file_count, if file_count == 1 { "" } else { "s" });
-        } else {
-            println!("  {} (no files on this machine/OS)", app_name);
-        }
-    }
-
-    Ok(())
-}
-
 pub fn list_rules() -> Result<()> {
     log::info!("Listing rules");
 

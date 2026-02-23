@@ -80,11 +80,20 @@ pub fn maybe_check_for_updates(config: &mut LocalConfig) -> Result<()> {
 
 /// Check for and optionally install a new release.
 ///
-/// `check_only`     – print update info but do not download or install.
-/// `skip_checksum`  – skip SHA-256 verification even if no sidecar exists.
-///                    Use only if you trust the download channel and the release
-///                    predates checksum support.
-pub fn run_self_update(check_only: bool, skip_checksum: bool) -> Result<()> {
+/// `check_only`          – print update info but do not download or install.
+/// `skip_checksum`       – skip SHA-256 verification even if no sidecar exists.
+///                         Use only if you trust the download channel and the release
+///                         predates checksum support.
+/// `no_download_readme`  – skip downloading the README after a successful update.
+/// `no_open_readme`      – download README but do not open it.
+/// `preferred_editor`    – editor to use when opening README (see `open_file`).
+pub fn run_self_update(
+    check_only: bool,
+    skip_checksum: bool,
+    no_download_readme: bool,
+    no_open_readme: bool,
+    preferred_editor: Option<&str>,
+) -> Result<()> {
     let current_version = env!("CARGO_PKG_VERSION");
     println!("Current version: {}", current_version);
 
@@ -198,6 +207,14 @@ pub fn run_self_update(check_only: bool, skip_checksum: bool) -> Result<()> {
             if status.success() {
                 println!("✅ Update installed successfully!");
                 println!("   Please restart your terminal or run: source ~/.profile");
+
+                if !no_download_readme {
+                    let open_editor = if no_open_readme { None } else { preferred_editor };
+                    match crate::cli::open_readme::run_open_readme(open_editor) {
+                        Ok(()) => {}
+                        Err(e) => eprintln!("⚠️  Could not download README: {}", e),
+                    }
+                }
             } else {
                 eprintln!("Failed to run installer script");
                 eprintln!("Installer URL: {}", installer_url);

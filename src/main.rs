@@ -13,7 +13,7 @@ use error::Result;
 #[command(name = "drifters")]
 #[command(version)]
 #[command(about = "Config file synchronization across machines", long_about = None)]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Commands,
 
@@ -172,6 +172,22 @@ enum Commands {
         /// releases that predate checksum support)
         #[arg(long)]
         skip_checksum: bool,
+        /// Do not download README.md after installing an update
+        #[arg(long)]
+        no_download_readme: bool,
+        /// Do not open README.md after downloading (only applies if download runs)
+        #[arg(long)]
+        no_open_readme: bool,
+    },
+    /// Download and open the latest README from the repository
+    OpenReadme,
+    /// Generate shell completion script
+    Completion {
+        /// Shell to generate completions for: bash, zsh, fish, powershell
+        shell: String,
+        /// Install the completion script to the default location for the shell
+        #[arg(long)]
+        install: bool,
     },
 }
 
@@ -245,6 +261,8 @@ fn run() -> Result<()> {
             | Commands::Init { .. }
             | Commands::RenameMachine { .. }
             | Commands::RemoveMachine { .. }
+            | Commands::OpenReadme
+            | Commands::Completion { .. }
     ) {
         if let Ok(mut config) = config::LocalConfig::load() {
             let _ = cli::self_update::maybe_check_for_updates(&mut config);
@@ -342,8 +360,26 @@ fn run() -> Result<()> {
         Commands::Hook => {
             cli::hook::generate_hook()
         }
-        Commands::SelfUpdate { check_only, skip_checksum } => {
-            cli::self_update::run_self_update(check_only, skip_checksum)
+        Commands::SelfUpdate { check_only, skip_checksum, no_download_readme, no_open_readme } => {
+            let editor = config::LocalConfig::load()
+                .ok()
+                .and_then(|c| c.preferred_editor);
+            cli::self_update::run_self_update(
+                check_only,
+                skip_checksum,
+                no_download_readme,
+                no_open_readme,
+                editor.as_deref(),
+            )
+        }
+        Commands::OpenReadme => {
+            let editor = config::LocalConfig::load()
+                .ok()
+                .and_then(|c| c.preferred_editor);
+            cli::open_readme::run_open_readme(editor.as_deref())
+        }
+        Commands::Completion { shell, install } => {
+            cli::completion::run_completion(&shell, install)
         }
     }
 }

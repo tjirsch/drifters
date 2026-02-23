@@ -152,7 +152,6 @@ No "last write wins" - true multi-machine intelligence.
 | `drifters exclude-app <app> <file>` | Exclude a file on this machine |
 | **Listing** | |
 | `drifters list-app [app]` | List all configured apps (or details for one) |
-| `drifters list-apps` | List app names with file counts |
 | `drifters list-rules` | Print current sync-rules.toml |
 | **Machine management** | |
 | `drifters rename-machine <old> <new>` | Rename a machine everywhere in the repo |
@@ -165,6 +164,7 @@ No "last write wins" - true multi-machine intelligence.
 | **Presets** | |
 | `drifters list-presets` | List available presets from GitHub |
 | `drifters load-preset <name>` | Load preset from GitHub repo |
+| `drifters discover-presets` | Auto-detect installed apps and offer to add matching presets |
 | **History** | |
 | `drifters history rules` | Show history of sync rules |
 | `drifters history app <name>` | Show history of app definition |
@@ -205,6 +205,7 @@ drifters merge-app --os linux
 
 - `--yolo` - Skip all confirmations (use with caution)
 - `-v, --verbose` - Show detailed logging
+- `-V, --version` - Print version and exit
 
 ## Configuration (~/.config/drifters/drifters.toml)
 
@@ -587,6 +588,9 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - Shell completion (`bash`, `zsh`, `fish`, `powershell`) via `completion <shell> [--install]`
 - `open-readme` command to download and open latest README
 - `preferred_editor` config option with `set-preferred-editor` command
+- `discover-presets` for auto-detecting installed apps
+- `-V / --version` flag
+- No C library dependencies — git operations shell out to system `git`
 
 ### 🔜 Planned
 - TUI diff viewer with syntax highlighting (currently text-based)
@@ -608,7 +612,6 @@ MIT License - see [LICENSE](LICENSE)
 Built with ❤️ using Rust
 
 - [clap](https://github.com/clap-rs/clap) - CLI parsing
-- [git2](https://github.com/rust-lang/git2-rs) - Git operations
 - [serde](https://github.com/serde-rs/serde) - Serialization
 - [glob](https://github.com/rust-lang/glob) - Pattern matching
 - [similar](https://github.com/mitsuhiko/similar) - Diff generation

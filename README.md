@@ -179,9 +179,11 @@ No "last write wins" - true multi-machine intelligence.
 | `drifters open-readme` | Download latest README and open it |
 | `drifters completion <shell>` | Print shell completion script to stdout |
 | `drifters completion <shell> --install` | Install completion script to default location |
-| `drifters set-preferred-editor <editor>` | Set preferred editor in `drifters.toml` |
-| `drifters set-preferred-editor --clear` | Clear the preferred editor setting |
-| `drifters set-preferred-editor` | Show current preferred editor setting |
+| `drifters set-editor <editor>` | Set preferred editor in `drifters.toml` |
+| `drifters set-editor --clear` | Clear the preferred editor setting |
+| `drifters set-editor` | Show current preferred editor setting |
+| `drifters edit-rules` | Open `sync-rules.toml` in your editor and optionally save to the repository |
+| `drifters unlock` | Force-remove a stale lock file left behind after a crash or Ctrl-C |
 
 ### The `merge-app` Command
 
@@ -223,7 +225,7 @@ self_update_frequency = "daily"
 preferred_editor = "zed"
 ```
 
-Use `drifters set-preferred-editor <editor>` to set the editor from the command line instead of editing the file directly.
+Use `drifters set-editor <editor>` to set the editor from the command line instead of editing the file directly.
 
 ### Shell Completion
 
@@ -587,7 +589,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - Consistent verb-object CLI naming convention
 - Shell completion (`bash`, `zsh`, `fish`, `powershell`) via `completion <shell> [--install]`
 - `open-readme` command to download and open latest README
-- `preferred_editor` config option with `set-preferred-editor` command
+- `preferred_editor` config option with `set-editor` command
 - `discover-presets` for auto-detecting installed apps
 - `-V / --version` flag
 - No C library dependencies — git operations shell out to system `git`

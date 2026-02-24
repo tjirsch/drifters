@@ -13,6 +13,7 @@ use error::Result;
 #[command(name = "drifters")]
 #[command(version)]
 #[command(about = "Config file synchronization across machines", long_about = None)]
+#[command(arg_required_else_help = true)]
 pub struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -27,11 +28,13 @@ pub struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Initialize drifters on this machine
+    #[command(arg_required_else_help = true)]
     Init {
         /// GitHub repository URL
         repo_url: String,
     },
     /// Add an app to sync
+    #[command(arg_required_else_help = true)]
     AddApp {
         /// App name to add
         app_name: String,
@@ -54,6 +57,7 @@ enum Commands {
     /// Print current sync-rules.toml
     ListRules,
     /// Remove an app's configs from this machine, a specific machine, or all machines
+    #[command(arg_required_else_help = true)]
     RemoveApp {
         /// App name to remove
         app_name: String,
@@ -65,6 +69,7 @@ enum Commands {
         all: bool,
     },
     /// Rename an app in the registry and repo
+    #[command(arg_required_else_help = true)]
     RenameApp {
         /// Current app name
         old_name: String,
@@ -72,6 +77,7 @@ enum Commands {
         new_name: String,
     },
     /// Exclude a file from syncing on this machine
+    #[command(arg_required_else_help = true)]
     ExcludeApp {
         /// App name
         app_name: String,
@@ -103,6 +109,7 @@ enum Commands {
         dry_run: bool,
     },
     /// Import app definition from file (defaults to ./<app>.toml)
+    #[command(arg_required_else_help = true)]
     ImportApp {
         /// App name
         app_name: String,
@@ -111,6 +118,7 @@ enum Commands {
         file: Option<std::path::PathBuf>,
     },
     /// Export app definition to file (defaults to ./<app>.toml)
+    #[command(arg_required_else_help = true)]
     ExportApp {
         /// App name
         app_name: String,
@@ -133,6 +141,7 @@ enum Commands {
     /// List available presets from GitHub repository
     ListPresets,
     /// Load preset from GitHub repository
+    #[command(arg_required_else_help = true)]
     LoadPreset {
         /// Preset name (e.g., "zed", "vscode")
         preset_name: String,
@@ -140,16 +149,19 @@ enum Commands {
     /// Auto-detect installed apps on this machine and offer to add them from presets
     DiscoverPresets,
     /// Show history of rules or app
+    #[command(arg_required_else_help = true)]
     History {
         #[command(subcommand)]
         target: HistoryTarget,
     },
     /// Restore previous version of rules or app
+    #[command(arg_required_else_help = true)]
     Restore {
         #[command(subcommand)]
         target: RestoreTarget,
     },
     /// Rename a machine in the registry and repo
+    #[command(arg_required_else_help = true)]
     RenameMachine {
         /// Current machine ID
         old_id: String,
@@ -157,6 +169,7 @@ enum Commands {
         new_id: String,
     },
     /// Remove a machine from the registry and delete its configs
+    #[command(arg_required_else_help = true)]
     RemoveMachine {
         /// Machine ID to remove
         machine_id: String,
@@ -182,6 +195,7 @@ enum Commands {
     /// Download and open the latest README from the repository
     OpenReadme,
     /// Generate shell completion script
+    #[command(arg_required_else_help = true)]
     Completion {
         /// Shell to generate completions for: bash, zsh, fish, powershell
         shell: String,
@@ -190,13 +204,17 @@ enum Commands {
         install: bool,
     },
     /// Set (or clear) the preferred editor in local config
-    SetPreferredEditor {
+    SetEditor {
         /// Editor command to use (e.g. "code", "zed", "vim"). Omit to show current value.
         editor: Option<String>,
         /// Remove the preferred_editor setting (fall back to $EDITOR / OS default)
         #[arg(long)]
         clear: bool,
     },
+    /// Open sync-rules.toml in your editor and optionally save changes to the repository
+    EditRules,
+    /// Force-remove a stale lock file left behind after a crash or Ctrl-C
+    Unlock,
 }
 
 #[derive(Subcommand)]
@@ -271,7 +289,8 @@ fn run() -> Result<()> {
             | Commands::RemoveMachine { .. }
             | Commands::OpenReadme
             | Commands::Completion { .. }
-            | Commands::SetPreferredEditor { .. }
+            | Commands::SetEditor { .. }
+            | Commands::Unlock
     ) {
         if let Ok(mut config) = config::LocalConfig::load() {
             let _ = cli::self_update::maybe_check_for_updates(&mut config);
@@ -390,7 +409,7 @@ fn run() -> Result<()> {
         Commands::Completion { shell, install } => {
             cli::completion::run_completion(&shell, install)
         }
-        Commands::SetPreferredEditor { editor, clear } => {
+        Commands::SetEditor { editor, clear } => {
             let mut config = config::LocalConfig::load()?;
             if clear {
                 config.preferred_editor = None;
@@ -407,6 +426,12 @@ fn run() -> Result<()> {
                 }
             }
             Ok(())
+        }
+        Commands::EditRules => {
+            cli::edit_rules::edit_rules()
+        }
+        Commands::Unlock => {
+            cli::unlock::unlock()
         }
     }
 }

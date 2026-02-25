@@ -1,9 +1,8 @@
 use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::Result;
-use crate::git::EphemeralRepoGuard;
+use crate::git::{collect_machine_versions, EphemeralRepoGuard};
 use crate::merge::intelligent_merge;
 use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
-use std::collections::HashMap;
 use std::fs;
 
 pub fn show_diff(app_name: Option<String>) -> Result<()> {
@@ -77,7 +76,8 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
                 continue;
             }
 
-            let all_versions = collect_machine_versions(&machines_dir, filename)?;
+            let all_versions =
+                collect_machine_versions(repo_path, &machines_dir, filename, None)?;
 
             if all_versions.is_empty() {
                 continue;
@@ -125,35 +125,6 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn collect_machine_versions(
-    machines_dir: &std::path::Path,
-    filename: &str,
-) -> Result<HashMap<String, String>> {
-    let mut versions = HashMap::new();
-
-    for entry in fs::read_dir(machines_dir)? {
-        let machine_dir = entry?.path();
-
-        if !machine_dir.is_dir() {
-            continue;
-        }
-
-        let machine_id = machine_dir
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string();
-
-        let file_path = machine_dir.join(filename);
-        if file_path.exists() {
-            let content = fs::read_to_string(&file_path)?;
-            versions.insert(machine_id, content);
-        }
-    }
-
-    Ok(versions)
 }
 
 fn show_file_diff(old: &str, new: &str) {

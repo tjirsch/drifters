@@ -144,3 +144,29 @@ fn push_to_remote(repo_path: &PathBuf) -> Result<()> {
     log::info!("Successfully pushed to remote");
     Ok(())
 }
+
+/// Return the Unix timestamp (seconds since epoch) of the most recent git commit
+/// that touched `relative_path` inside `repo_path`.
+///
+/// Returns `None` if the file has no git history, git is unavailable, or the
+/// output cannot be parsed (e.g. legacy repos that predate this feature).
+pub fn get_file_commit_time(repo_path: &std::path::Path, relative_path: &str) -> Option<u64> {
+    let output = Command::new("git")
+        .args([
+            "-C",
+            repo_path.to_str()?,
+            "log",
+            "-1",
+            "--format=%ct",
+            "--",
+            relative_path,
+        ])
+        .output()
+        .ok()?;
+
+    std::str::from_utf8(&output.stdout)
+        .ok()?
+        .trim()
+        .parse::<u64>()
+        .ok()
+}

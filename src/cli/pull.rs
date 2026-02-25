@@ -29,6 +29,7 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     }
 
     // Determine which apps to pull
+    let pull_all = app_name.is_none();
     let apps_to_pull: Vec<_> = if let Some(name) = app_name {
         if rules.apps.contains_key(&name) {
             vec![name]
@@ -60,6 +61,13 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
             continue;
         }
 
+        // In pull-all mode, skip apps that have no files present locally on this
+        // machine — the app probably isn't installed here.
+        if pull_all && !fileset.iter().any(|p| p.exists()) {
+            println!("  Skipping '{}': no local files found on this machine", app);
+            continue;
+        }
+
         for local_path in fileset {
             // Get filename
             let filename = local_path
@@ -79,26 +87,8 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 continue;
             }
 
-            let mut all_versions = collect_machine_versions(&machines_dir, filename, None)?;
-
-            // Include the current machine's local file in the consensus if it
-            // has not yet been pushed (i.e. no repo entry for this machine ID).
-            // Without this, local edits made since the last `drifters push`
-            // would be invisible to the vote and could be overwritten.
-            if local_path.exists() && !all_versions.contains_key(&config.machine_id) {
-                match fs::read_to_string(&local_path) {
-                    Ok(local_content) => {
-                        log::debug!(
-                            "{}: local version added to consensus (not yet pushed)",
-                            filename
-                        );
-                        all_versions.insert(config.machine_id.clone(), local_content);
-                    }
-                    Err(e) => {
-                        log::warn!("Could not read local file {:?}: {}", local_path, e);
-                    }
-                }
-            }
+            let all_versions =
+                collect_machine_versions(repo_path, &machines_dir, filename, None)?;
 
             if all_versions.is_empty() {
                 log::debug!("No versions found for {}", filename);

@@ -87,7 +87,7 @@ pub fn merge_command(
             }
 
             let all_versions =
-                collect_machine_versions(&machines_dir, filename, filter_machine.as_deref())?;
+                collect_machine_versions(repo_path, &machines_dir, filename, filter_machine.as_deref())?;
 
             if all_versions.is_empty() {
                 log::debug!("No versions found for {}", filename);

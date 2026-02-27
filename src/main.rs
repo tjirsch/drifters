@@ -203,11 +203,11 @@ enum Commands {
         #[arg(long)]
         install: bool,
     },
-    /// Set (or clear) the preferred editor in local config
+    /// Set (or clear) the editor in local config
     SetEditor {
         /// Editor command to use (e.g. "code", "zed", "vim"). Omit to show current value.
         editor: Option<String>,
-        /// Remove the preferred_editor setting (fall back to $EDITOR / OS default)
+        /// Remove the editor setting (fall back to $EDITOR / OS default)
         #[arg(long)]
         clear: bool,
     },
@@ -391,7 +391,7 @@ fn run() -> Result<()> {
         Commands::SelfUpdate { check_only, skip_checksum, no_download_readme, no_open_readme } => {
             let editor = config::LocalConfig::load()
                 .ok()
-                .and_then(|c| c.preferred_editor);
+                .and_then(|c| c.editor);
             cli::self_update::run_self_update(
                 check_only,
                 skip_checksum,
@@ -403,7 +403,7 @@ fn run() -> Result<()> {
         Commands::OpenReadme => {
             let editor = config::LocalConfig::load()
                 .ok()
-                .and_then(|c| c.preferred_editor);
+                .and_then(|c| c.editor);
             cli::open_readme::run_open_readme(editor.as_deref())
         }
         Commands::Completion { shell, install } => {
@@ -412,17 +412,17 @@ fn run() -> Result<()> {
         Commands::SetEditor { editor, clear } => {
             let mut config = config::LocalConfig::load()?;
             if clear {
-                config.preferred_editor = None;
+                config.editor = None;
                 config.save()?;
-                println!("✅ preferred_editor cleared (will fall back to $EDITOR / OS default).");
+                println!("✅ editor cleared (will fall back to $EDITOR / OS default).");
             } else if let Some(e) = editor {
-                config.preferred_editor = Some(e.clone());
+                config.editor = Some(e.clone());
                 config.save()?;
-                println!("✅ preferred_editor set to \"{}\".", e);
+                println!("✅ editor set to \"{}\".", e);
             } else {
-                match &config.preferred_editor {
-                    Some(e) => println!("preferred_editor = \"{}\"", e),
-                    None => println!("preferred_editor is not set (using $EDITOR / OS default)."),
+                match &config.editor {
+                    Some(e) => println!("editor = \"{}\"", e),
+                    None => println!("editor is not set (using $EDITOR / OS default)."),
                 }
             }
             Ok(())

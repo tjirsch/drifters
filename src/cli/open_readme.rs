@@ -4,8 +4,8 @@ const README_URL: &str =
     "https://raw.githubusercontent.com/tjirsch/drifters/main/README.md";
 
 /// Download the latest README from the repository and open it with the
-/// preferred editor (or the OS default if none is configured).
-pub fn run_open_readme(preferred_editor: Option<&str>) -> Result<()> {
+/// configured editor (or the OS default if none is configured).
+pub fn run_open_readme(editor: Option<&str>) -> Result<()> {
     let client = reqwest::blocking::Client::builder()
         .user_agent("drifters-open-readme")
         .build()?;
@@ -31,6 +31,6 @@ pub fn run_open_readme(preferred_editor: Option<&str>) -> Result<()> {
     std::fs::write(&dest, &content)?;
     println!("README saved to: {}", dest.display());
 
-    crate::cli::common::open_file(&dest, preferred_editor)?;
+    crate::cli::common::open_file(&dest, editor)?;
     Ok(())
 }

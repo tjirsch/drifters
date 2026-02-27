@@ -86,13 +86,13 @@ pub fn maybe_check_for_updates(config: &mut LocalConfig) -> Result<()> {
 ///                         predates checksum support.
 /// `no_download_readme`  – skip downloading the README after a successful update.
 /// `no_open_readme`      – download README but do not open it.
-/// `preferred_editor`    – editor to use when opening README (see `open_file`).
+/// `editor`              – editor to use when opening README (see `open_file`).
 pub fn run_self_update(
     check_only: bool,
     skip_checksum: bool,
     no_download_readme: bool,
     no_open_readme: bool,
-    preferred_editor: Option<&str>,
+    editor: Option<&str>,
 ) -> Result<()> {
     let current_version = env!("CARGO_PKG_VERSION");
     println!("Current version: {}", current_version);
@@ -209,7 +209,7 @@ pub fn run_self_update(
                 println!("   Please restart your terminal or run: source ~/.profile");
 
                 if !no_download_readme {
-                    let open_editor = if no_open_readme { None } else { preferred_editor };
+                    let open_editor = if no_open_readme { None } else { editor };
                     match crate::cli::open_readme::run_open_readme(open_editor) {
                         Ok(()) => {}
                         Err(e) => eprintln!("⚠️  Could not download README: {}", e),

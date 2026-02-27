@@ -3,17 +3,17 @@ use crate::error::{DriftersError, Result};
 use std::io::{self, Write};
 use std::path::Path;
 
-/// Open a file using `preferred_editor`, falling back to `$EDITOR`, then the OS default.
+/// Open a file using `editor`, falling back to `$EDITOR`, then the OS default.
 ///
 /// Priority:
-/// 1. `preferred_editor` argument (from `LocalConfig.preferred_editor`)
+/// 1. `editor` argument (from `LocalConfig.editor`)
 /// 2. `$EDITOR` environment variable
 /// 3. OS default: `open` on macOS, `xdg-open` on Linux, `cmd /C start` on Windows
 ///
 /// On macOS, if the named editor binary is not found on `PATH`, falls back to
 /// `open -a <editor> <file>` so GUI apps (Zed, VS Code, etc.) can be found by
 /// their app-bundle name even when their CLI wrapper is absent.
-pub fn open_file(path: &Path, preferred_editor: Option<&str>) -> Result<()> {
+pub fn open_file(path: &Path, editor: Option<&str>) -> Result<()> {
     let path_str = path.to_str().ok_or_else(|| {
         DriftersError::Config(format!(
             "File path {:?} contains non-UTF-8 characters",
@@ -22,7 +22,7 @@ pub fn open_file(path: &Path, preferred_editor: Option<&str>) -> Result<()> {
     })?;
 
     let editor_env = std::env::var("EDITOR").ok();
-    let editor = preferred_editor.or_else(|| editor_env.as_deref());
+    let editor = editor.or_else(|| editor_env.as_deref());
 
     if let Some(editor) = editor {
         println!("   Opening '{}' with '{}'...", path_str, editor);
@@ -41,8 +41,8 @@ pub fn open_file(path: &Path, preferred_editor: Option<&str>) -> Result<()> {
                 }
                 return Err(DriftersError::Config(format!(
                     "Editor '{}' not found — is it installed and on your PATH?\n\
-                     Hint: set preferred_editor to the full path in ~/.config/drifters/drifters.toml\n\
-                     e.g.  preferred_editor = \"/usr/local/bin/zed\"",
+                     Hint: set editor to the full path in ~/.config/drifters/drifters.toml\n\
+                     e.g.  editor = \"/usr/local/bin/zed\"",
                     editor
                 )));
             }
@@ -75,7 +75,7 @@ pub fn open_file(path: &Path, preferred_editor: Option<&str>) -> Result<()> {
             .is_err()
         {
             return Err(DriftersError::Config(format!(
-                "Could not open '{}': xdg-open failed and neither preferred_editor nor $EDITOR is set",
+                "Could not open '{}': xdg-open failed and neither editor nor $EDITOR is set",
                 path_str
             )));
         }

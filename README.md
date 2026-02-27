@@ -216,13 +216,13 @@ User-level parameters live in **`~/.config/drifters/drifters.toml`**. This file 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `self_update_frequency` | `"always"` | When to auto-check for updates: `never`, `always`, or `daily` (at most once per 24 hours). The check is check-only — no install, no README. |
-| `preferred_editor` | *(none)* | Editor command used to open files (e.g. `"zed"`, `"code"`, `"vim"`). Falls back to `$EDITOR` env var, then the OS default app. |
+| `editor` | *(none)* | Editor command used to open files (e.g. `"zed"`, `"code"`, `"vim"`). Falls back to `$EDITOR` env var, then the OS default app. |
 
 Example (optional; the file is created automatically):
 
 ```toml
 self_update_frequency = "daily"
-preferred_editor = "zed"
+editor = "zed"
 ```
 
 Use `drifters set-editor <editor>` to set the editor from the command line instead of editing the file directly.
@@ -232,6 +232,10 @@ Use `drifters set-editor <editor>` to set the editor from the command line inste
 Generate tab-completion for your shell (`bash`, `zsh`, `fish`, `powershell`):
 
 ```bash
+# On macOS: no arguments needed — defaults to zsh + --install
+drifters completion
+# → installs to ~/.zsh/completions/_drifters
+
 # Print to stdout and add manually
 drifters completion bash >> ~/.bash_completion
 drifters completion zsh >> ~/.zshrc
@@ -587,9 +591,9 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - `rename-machine` / `remove-machine` with cross-machine stale-ID detection
 - `rename-app` / extended `remove-app` with `--machine` and `--all` scoping
 - Consistent verb-object CLI naming convention
-- Shell completion (`bash`, `zsh`, `fish`, `powershell`) via `completion <shell> [--install]`
+- Shell completion (`bash`, `zsh`, `fish`, `powershell`) via `completion [shell] [--install]`; defaults to zsh + --install on macOS
 - `open-readme` command to download and open latest README
-- `preferred_editor` config option with `set-editor` command
+- `editor` config option with `set-editor` command
 - `discover-presets` for auto-detecting installed apps
 - `-V / --version` flag
 - No C library dependencies — git operations shell out to system `git`

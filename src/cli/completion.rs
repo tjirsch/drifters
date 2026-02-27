@@ -3,13 +3,28 @@ use std::path::PathBuf;
 
 /// Generate (and optionally install) shell completion scripts.
 ///
-/// `shell_str` – one of "bash", "zsh", "fish", "powershell".
+/// `shell_str` – one of "bash", "zsh", "fish", "powershell". On macOS, omit
+///               (pass `None`) to default to "zsh" with `--install` behaviour.
 /// `install`   – when true, write the script to the shell's default location
 ///               and print setup instructions; otherwise write to stdout.
-pub fn run_completion(shell_str: &str, install: bool) -> Result<()> {
+pub fn run_completion(shell_str: Option<&str>, install: bool) -> Result<()> {
     use clap::CommandFactory;
     use clap_complete::{generate, Shell};
     use std::str::FromStr;
+
+    // On macOS, default to zsh + install when no shell is specified.
+    #[cfg(target_os = "macos")]
+    let (shell_str, install) = match shell_str {
+        Some(s) => (s, install),
+        None => ("zsh", true),
+    };
+
+    #[cfg(not(target_os = "macos"))]
+    let shell_str = shell_str.ok_or_else(|| {
+        DriftersError::Config(
+            "Shell argument is required. Supported shells: bash, zsh, fish, powershell".to_string(),
+        )
+    })?;
 
     let shell = Shell::from_str(shell_str).map_err(|_| {
         DriftersError::Config(format!(

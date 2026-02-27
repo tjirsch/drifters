@@ -28,7 +28,8 @@ pub struct LocalConfig {
     /// Preferred editor command for opening files (e.g. "code", "zed", "vim").
     /// Falls back to $EDITOR env var, then the OS default app.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub preferred_editor: Option<String>,
+    #[serde(alias = "preferred_editor")]
+    pub editor: Option<String>,
 }
 
 fn default_self_update_frequency() -> String {
@@ -66,7 +67,7 @@ impl LocalConfig {
             repo_path: Self::get_temp_repo_path().unwrap_or_default(),
             self_update_frequency: default_self_update_frequency(),
             last_update_check: None,
-            preferred_editor: None,
+            editor: None,
         }
     }
 

@@ -19,7 +19,7 @@ pub fn edit_rules() -> Result<()> {
     println!("Opening sync-rules.toml...");
     println!("(The repository lock is held while the editor is open)");
 
-    open_file(&rules_path, local_config.preferred_editor.as_deref())?;
+    open_file(&rules_path, local_config.editor.as_deref())?;
 
     // For GUI editors that return immediately, give the user a chance to finish editing.
     {

@@ -57,7 +57,7 @@ drifters load-preset zed
 # Committing changes...
 # ✓ Changes committed and pushed
 #
-# Run 'drifters merge --app zed' to apply the new rules
+# Run 'drifters merge-app zed' to apply the new rules
 ```
 
 This automatically:
@@ -83,7 +83,7 @@ drifters import-app zed --file presets/zed.toml
 # ✓ Added 'zed' from "./zed.toml"
 # Committing changes...
 # ✓ Changes committed and pushed
-# Run 'drifters merge --app zed' to apply the new rules
+# Run 'drifters merge-app zed' to apply the new rules
 ```
 
 This automatically:
@@ -232,7 +232,7 @@ drifters restore app zed --commit abc1234
 # ✓ Restored 'zed' from commit abc1234
 # Committing changes...
 # ✓ Changes committed and pushed
-# Run 'drifters merge --app zed' to apply the restored rules
+# Run 'drifters merge-app zed' to apply the restored rules
 ```
 
 **Note:** This creates a NEW commit with the old content - it doesn't revert Git history.
@@ -266,7 +266,7 @@ drifters list-presets
 drifters load-preset zed
 
 # 3. Apply it
-drifters merge --app zed
+drifters merge-app zed
 ```
 
 **Alternative: Using local preset files**
@@ -293,7 +293,7 @@ vim zsh.toml
 
 # 3. Test it
 drifters import-app zsh
-drifters merge --app zsh --dry-run
+drifters merge-app zsh --dry-run
 
 # 4. Share it
 # - Create PR to drifters repo
@@ -305,7 +305,7 @@ drifters merge --app zsh --dry-run
 
 ```bash
 # Oh no! You broke your config
-drifters push zed
+drifters push-app zed
 
 # Check history
 drifters history app zed
@@ -314,7 +314,7 @@ drifters history app zed
 drifters restore app zed --commit abc1234
 
 # Apply it
-drifters merge --app zed
+drifters merge-app zed
 ```
 
 ### Workflow 4: Backup and Restore
@@ -329,7 +329,7 @@ drifters export-rules --file ~/backups/drifters-$(date +%Y%m%d).toml
 
 # Later, if needed:
 drifters import-rules --file ~/backups/drifters-20260215.toml
-drifters merge
+drifters merge-app
 ```
 
 ### Workflow 5: Multiple Machine Configs
@@ -393,7 +393,7 @@ cat preset.toml
 
 # Or use merge --dry-run after import
 drifters import-app zed --file preset.toml
-drifters merge --app zed --dry-run
+drifters merge-app zed --dry-run
 ```
 
 ### 2. Keep Backups
@@ -415,7 +415,7 @@ drifters history rules --limit 50
 ```bash
 # Restore and preview
 drifters restore app zed --commit abc1234
-drifters merge --app zed --dry-run
+drifters merge-app zed --dry-run
 ```
 
 ### 5. Share Safely
@@ -442,7 +442,7 @@ vim ~/my-configs/.drifters/sync-rules.toml
 # Edit manually
 git -C ~/my-configs commit -am "Update"
 git -C ~/my-configs push
-drifters merge
+drifters merge-app
 ```
 
 ### New Way (Import/Export)
@@ -451,7 +451,7 @@ drifters merge
 drifters export-app zed    # Exports to ./zed.toml
 vim zed.toml               # Edit the file
 drifters import-app zed    # Imports from ./zed.toml
-drifters merge --app zed
+drifters merge-app zed
 ```
 
 **Benefits:**

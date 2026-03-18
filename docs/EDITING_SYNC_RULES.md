@@ -88,13 +88,13 @@ On each of your other machines:
 
 ```bash
 # Pull the updated rules
-drifters pull
+drifters pull-app
 
 # The sync-rules.toml is automatically synced as part of the repo
 
 # Re-apply the new rules to your configs
-drifters merge --dry-run    # Preview what would change
-drifters merge              # Apply the new rules
+drifters merge-app --dry-run    # Preview what would change
+drifters merge-app              # Apply the new rules
 ```
 
 ## Method 2: Edit During Ephemeral Operations
@@ -111,12 +111,12 @@ drifters push &
 
 **Not recommended** - use Method 1 instead.
 
-## Method 3: Using `drifters add` (Interactive)
+## Method 3: Using `drifters add-app` (Interactive)
 
-The `drifters add` command provides an interactive way to add apps:
+The `drifters add-app` command provides an interactive way to add apps:
 
 ```bash
-drifters add zed
+drifters add-app zed
 ```
 
 **Prompts:**
@@ -240,9 +240,9 @@ git push
 
 ```bash
 # After editing sync-rules.toml
-drifters pull              # Get the updated rules
-drifters merge --dry-run   # See what would change
-drifters merge             # Apply if it looks good
+drifters pull-app              # Get the updated rules
+drifters merge-app --dry-run   # See what would change
+drifters merge-app             # Apply if it looks good
 ```
 
 ### 3. Comment Your Config
@@ -307,15 +307,14 @@ git push
 ### Removing an App
 
 ```bash
-# Edit sync-rules.toml
-vim ~/my-drifters-config/.drifters/sync-rules.toml
+# Remove this machine's configs for an app
+drifters remove-app myapp
 
-# Delete the entire [apps.appname] section
-# (Including all subsections like [apps.appname.machines.x])
+# Remove a specific machine's configs
+drifters remove-app myapp --machine laptop
 
-# Commit
-git commit -am "Remove appname from sync"
-git push
+# Remove an app from all machines entirely
+drifters remove-app myapp --all
 ```
 
 ### Changing an App's Config
@@ -337,7 +336,7 @@ git commit -am "Add tasks.json to Zed sync"
 git push
 
 # On all machines, re-merge with new rules
-drifters merge --app zed
+drifters merge-app zed
 ```
 
 ## Troubleshooting
@@ -350,10 +349,10 @@ cd ~/my-drifters-config
 git push
 
 # Pull on the machine where you're getting the error
-drifters pull
+drifters pull-app
 
 # Or just run any drifters command (it auto-pulls the repo)
-drifters list
+drifters list-app
 ```
 
 ### Syntax errors in TOML
@@ -369,51 +368,60 @@ cat .drifters/sync-rules.toml | python3 -c "import sys, toml; toml.load(sys.stdi
 
 ```bash
 # Pull latest rules
-drifters pull
+drifters pull-app
 
 # Re-apply rules to configs
-drifters merge --dry-run
-drifters merge
+drifters merge-app --dry-run
+drifters merge-app
 ```
 
-## Future: Import Command (Planned)
+## Method 4: Using `drifters edit-rules`
 
-We're planning an `import` command to make this easier:
+The `edit-rules` command opens `sync-rules.toml` in your editor and optionally saves changes back to the repository:
 
 ```bash
-# Future command
-drifters import preset zed
-drifters import url https://example.com/app.toml
-drifters import file ~/Downloads/zsh.toml
+drifters edit-rules
 ```
 
-For now, use manual copy/paste as described above.
+This clones the repo, opens the rules file in your configured editor (see `drifters set-editor`), and after you close the editor, offers to commit and push any changes.
+
+## Method 5: Import/Export Commands
+
+Import and export commands eliminate the need for a persistent clone:
+
+```bash
+# Load a community preset from GitHub
+drifters load-preset zed
+
+# Export an app definition, edit it, re-import
+drifters export-app zed
+vim zed.toml
+drifters import-app zed
+
+# Import from a specific file
+drifters import-app zed --file ~/my-preset.toml
+```
+
+See [IMPORT_EXPORT.md](IMPORT_EXPORT.md) for the full guide.
 
 ## Summary
 
 **Quick Reference:**
 
-1. **Clone your config repo persistently:**
+1. **Use `edit-rules` (easiest):**
+   ```bash
+   drifters edit-rules
+   ```
+
+2. **Or clone your config repo persistently:**
    ```bash
    git clone git@github.com:username/my-configs.git ~/my-drifters-config
-   ```
-
-2. **Edit sync-rules.toml:**
-   ```bash
    vim ~/my-drifters-config/.drifters/sync-rules.toml
+   cd ~/my-drifters-config && git commit -am "Update config" && git push
    ```
 
-3. **Commit and push:**
+3. **Apply on all machines:**
    ```bash
-   cd ~/my-drifters-config
-   git commit -am "Update config"
-   git push
+   drifters merge-app --dry-run
+   drifters merge-app
    ```
-
-4. **Apply on all machines:**
-   ```bash
-   drifters merge --dry-run
-   drifters merge
-   ```
-
-That's it! You now have full control over your sync configuration.

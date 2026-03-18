@@ -10,7 +10,7 @@ Complete documentation for Drifters config synchronization.
 ## Configuration
 
 - **[Editing Sync Rules](EDITING_SYNC_RULES.md)** - How to manually edit sync-rules.toml and add app definitions
-- **[Complete Example](../examples/sync-rules-complete.toml)** - Comprehensive sync-rules.toml with all features
+- **[Import & Export](IMPORT_EXPORT.md)** - Import/export app definitions and rules
 - **[App Presets](../presets/)** - Pre-configured definitions for popular apps
 
 ## Core Concepts
@@ -50,22 +50,20 @@ When pulling, Drifters:
 
 **Interactive:**
 ```bash
-drifters add zed
+drifters add-app zed
 # Follow prompts
 ```
 
-**From preset:**
+**From preset (recommended):**
 ```bash
-git clone git@github.com:username/my-configs.git ~/my-drifters-config
-cat presets/zed.toml >> ~/my-drifters-config/.drifters/sync-rules.toml
-cd ~/my-drifters-config && git commit -am "Add Zed" && git push
-drifters merge --app zed
+drifters load-preset zed
+drifters merge-app zed
 ```
 
 **Manual:**
 ```bash
 # Edit sync-rules.toml directly
-vim ~/my-drifters-config/.drifters/sync-rules.toml
+drifters edit-rules
 ```
 
 See: [Editing Sync Rules](EDITING_SYNC_RULES.md)
@@ -74,20 +72,20 @@ See: [Editing Sync Rules](EDITING_SYNC_RULES.md)
 
 **Push local changes:**
 ```bash
-drifters push [app]    # Interactive confirmation
-drifters push --yolo   # Skip confirmation
+drifters push-app [app]    # Interactive confirmation
+drifters push-app --yolo   # Skip confirmation
 ```
 
 **Pull remote changes:**
 ```bash
-drifters pull [app]    # Interactive confirmation
-drifters pull --yolo   # Skip confirmation
+drifters pull-app [app]    # Interactive confirmation
+drifters pull-app --yolo   # Skip confirmation
 ```
 
 **Check status:**
 ```bash
-drifters status        # See what's synced/changed
-drifters list          # List all apps
+drifters status            # See what's synced/changed
+drifters list-app          # List all apps
 ```
 
 ### Re-applying Rules
@@ -95,11 +93,11 @@ drifters list          # List all apps
 After editing sync-rules.toml:
 
 ```bash
-drifters merge --dry-run              # Preview changes
-drifters merge                        # Apply to all apps
-drifters merge --app zed              # Apply to specific app
-drifters merge --machine mac01        # Test merging from one machine
-drifters merge --os macos --dry-run   # Test OS-specific rules
+drifters merge-app --dry-run              # Preview changes
+drifters merge-app                        # Apply to all apps
+drifters merge-app zed                    # Apply to specific app
+drifters merge-app --machine mac01        # Test merging from one machine
+drifters merge-app --os macos --dry-run   # Test OS-specific rules
 ```
 
 ## Common Patterns
@@ -202,7 +200,8 @@ Benefits: Always fresh, no stale state.
 
 ```
 ~/.config/drifters/
-├── config.toml           # Machine ID and repo URL
+├── drifters.toml        # User settings (editor, update frequency)
+├── config.toml          # Machine ID and repo URL
 └── tmp-repo/            # Temporary (deleted after each command)
 ```
 
@@ -230,16 +229,16 @@ export LOCAL2="path"
 
 ```bash
 # Verbose output
-drifters -v push
+drifters -v push-app
 
 # Check what's tracked
-drifters list
+drifters list-app
 
 # See status
 drifters status
 
 # Preview merge
-drifters merge --dry-run
+drifters merge-app --dry-run
 ```
 
 ## Troubleshooting
@@ -261,17 +260,16 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for:
 
 ## Examples
 
-- [Complete sync-rules.toml](../examples/sync-rules-complete.toml)
 - [Zed preset](../presets/zed.toml)
+- [VS Code preset](../presets/vscode.toml)
 
 ## Future Plans
 
 Planned features:
-- `drifters import preset <name>` - Import presets automatically
 - Community preset registry
-- TUI diff viewer
-- Config validation
-- Shell completion
+- TUI diff viewer with syntax highlighting
+- Improved conflict resolution UI
+- Config validation and linting
 
 ## Getting Help
 

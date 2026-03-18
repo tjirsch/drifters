@@ -11,7 +11,10 @@ Get Drifters running in 5 minutes.
 ## Step 1: Install Drifters
 
 ```bash
-# Clone and build
+# From GitHub releases (recommended)
+curl -sSL https://github.com/tjirsch/drifters/releases/latest/download/drifters-installer.sh | sh
+
+# Or from source
 git clone https://github.com/tjirsch/drifters
 cd drifters
 cargo install --path .
@@ -56,7 +59,7 @@ Let's sync Zed editor configs:
 ### Option A: Interactive
 
 ```bash
-drifters add zed
+drifters add-app zed
 ```
 
 **Prompts:**
@@ -75,22 +78,23 @@ Enter file patterns to exclude (optional, empty line to skip):
 ✓ Changes committed and pushed
 ```
 
-### Option B: Use Preset
+### Option B: Use Preset (Recommended)
 
 ```bash
-# View the preset
-cat presets/zed.toml
+# List available presets
+drifters list-presets
 
-# Then add it manually:
-cd ~/.config/drifters/tmp-repo
-# (repo is cloned temporarily during commands)
-# Or clone your repo separately and edit .drifters/sync-rules.toml
+# Load directly from GitHub
+drifters load-preset zed
+
+# Apply on this machine
+drifters merge-app zed
 ```
 
 ## Step 5: Push Your Configs
 
 ```bash
-drifters push
+drifters push-app
 ```
 
 **Output:**
@@ -123,7 +127,7 @@ drifters init git@github.com:username/my-configs.git
 # ✓ Local config saved
 
 # Pull the configs
-drifters pull
+drifters pull-app
 
 # Pulling configs for 'zed'...
 #   settings.json - ✓ Created
@@ -142,10 +146,10 @@ On your second machine, edit the config:
 vim ~/.config/zed/settings.json
 
 # Push the change
-drifters push zed
+drifters push-app zed
 
 # On first machine, pull it
-drifters pull zed
+drifters pull-app zed
 ```
 
 ## Using Section Tags
@@ -184,22 +188,22 @@ Now your configs auto-pull silently when you open a terminal.
 ### Add Another App
 
 ```bash
-drifters add zsh
+drifters add-app zsh
 # > ~/.zshrc
 # > ~/.zshenv
 # >
 
-drifters push zsh
+drifters push-app zsh
 ```
 
 ### Exclude a File on One Machine
 
 ```bash
 # On laptop: don't sync keymap (different keyboard)
-drifters exclude zed keymap.json
+drifters exclude-app zed keymap.json
 
 # Check it worked
-drifters list
+drifters list-app
 ```
 
 ### Check Status
@@ -217,9 +221,11 @@ drifters status
 
 ```bash
 # Edit sync-rules.toml with new patterns
+drifters edit-rules
+
 # Then re-merge all configs with current rules
-drifters merge --dry-run    # Preview
-drifters merge              # Apply
+drifters merge-app --dry-run    # Preview
+drifters merge-app              # Apply
 ```
 
 ## Next Steps
@@ -254,10 +260,10 @@ ssh-add -l
 **"App not found"**
 ```bash
 # List apps
-drifters list
+drifters list-app
 
 # Add the app first
-drifters add <app>
+drifters add-app <app>
 ```
 
 ## Tips

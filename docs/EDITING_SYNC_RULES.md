@@ -15,7 +15,7 @@ my-configs/
     └── (synced config files stored here)
 ```
 
-**Local Drifters Config** (`~/.config/drifters/config.toml`):
+**Local Drifters Config** (`~/.config/drifters/drifters.toml`):
 ```toml
 machine_id = "laptop"
 repo_url = "git@github.com:username/my-configs.git"

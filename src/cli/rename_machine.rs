@@ -72,7 +72,7 @@ pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
     println!("  • Update machine overrides in sync-rules.toml");
     if old_id == config.machine_id {
         println!(
-            "  • Update your local config (~/.config/drifters/config.toml) to '{}'",
+            "  • Update your local config (~/.config/drifters/drifters.toml) to '{}'",
             new_id
         );
     }

@@ -231,7 +231,7 @@ include = [
 # - windows-pc
 
 # Check your machine ID:
-# cat ~/.config/drifters/config.toml
+# cat ~/.config/drifters/drifters.toml
 
 # =============================================================================
 # Section Tag Examples

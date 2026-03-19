@@ -201,7 +201,7 @@ Benefits: Always fresh, no stale state.
 ```
 ~/.config/drifters/
 ├── drifters.toml        # User settings (editor, update frequency)
-├── config.toml          # Machine ID and repo URL
+├── drifters.toml        # Machine ID, repo URL, and user settings
 └── tmp-repo/            # Temporary (deleted after each command)
 ```
 

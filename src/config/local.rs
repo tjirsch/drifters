@@ -18,7 +18,7 @@ pub struct LocalConfig {
 
     /// Last update check timestamp (Unix epoch seconds).
     ///
-    /// Stored as a plain integer in config.toml.  Old versions stored it as
+    /// Stored as a plain integer in drifters.toml.  Old versions stored it as
     /// a quoted string; `deserialize_timestamp` handles both forms so
     /// existing configs continue to work after upgrading.
     #[serde(skip_serializing_if = "Option::is_none")]

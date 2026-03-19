@@ -46,7 +46,7 @@ drifters init git@github.com:username/my-configs.git
 Cloning repository...
 ✓ Repository cloned
 Detected machine: macbook-pro (macos)
-✓ Local config saved to ~/.config/drifters/config.toml
+✓ Local config saved to ~/.config/drifters/drifters.toml
 ✓ Registered machine 'macbook-pro'
 ```
 

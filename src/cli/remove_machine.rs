@@ -40,7 +40,7 @@ pub fn remove_machine(machine_id: String) -> Result<()> {
             machine_id
         );
         eprintln!(
-            "   Your local drifters config (~/.config/drifters/config.toml) will be deleted."
+            "   Your local drifters config (~/.config/drifters/drifters.toml) will be deleted."
         );
         eprintln!(
             "   You will need to run 'drifters init <repo-url>' to use drifters again."
@@ -56,7 +56,7 @@ pub fn remove_machine(machine_id: String) -> Result<()> {
     println!("  • Remove the machine from the registry (.drifters/machines.toml)");
     println!("  • Remove machine overrides from sync-rules.toml");
     if is_self {
-        println!("  • Delete ~/.config/drifters/config.toml (local de-initialization)");
+        println!("  • Delete ~/.config/drifters/drifters.toml (local de-initialization)");
     }
 
     let prompt = format!(

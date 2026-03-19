@@ -30,7 +30,7 @@ pub fn initialize(repo_url: String) -> Result<()> {
     // Check if already initialized
     if let Ok(_) = LocalConfig::load() {
         return Err(DriftersError::Config(
-            "Drifters already initialized. Check ~/.config/drifters/config.toml".to_string(),
+            "Drifters already initialized. Check ~/.config/drifters/drifters.toml".to_string(),
         ));
     }
 

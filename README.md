@@ -350,6 +350,7 @@ Runs `drifters pull-app --yolo` in background on shell startup. Changes applied 
 
 Check out [presets/](presets/) for pre-configured definitions:
 
+- **[Claude Code](presets/claude-code.toml)** - Anthropic's CLI for Claude (global instructions, rules, commands)
 - **[Cursor](presets/cursor.toml)** - AI-powered code editor built on VS Code
 - **[Visual Studio Code](presets/vscode.toml)** - Popular code editor with settings, keybindings, and snippets
 - **[Windsurf](presets/windsurf.toml)** - Codeium's agentic code editor

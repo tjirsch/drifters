@@ -4,6 +4,7 @@ This directory contains pre-configured app definitions for popular applications.
 
 ## Available Presets
 
+- **[claude-code.toml](claude-code.toml)** - Claude Code (Anthropic's CLI for Claude)
 - **[cursor.toml](cursor.toml)** - Cursor IDE (AI-powered code editor built on VS Code)
 - **[vscode.toml](vscode.toml)** - Visual Studio Code (popular code editor)
 - **[windsurf.toml](windsurf.toml)** - Windsurf IDE (Codeium's agentic code editor)

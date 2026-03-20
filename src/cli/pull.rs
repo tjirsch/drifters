@@ -121,7 +121,7 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                     None
                 } else if !yolo {
                     // Show diff and ask for confirmation
-                    println!("\n  Changes in {}:", filename);
+                    println!("\n  Changes in {} ({}):", filename, local_path.display());
                     show_simple_diff(&local_content, &merged_with_local);
                     let msg = format!("Apply changes to {}?", filename);
                     if confirm_operation(&msg, true)? {
@@ -153,7 +153,7 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 }
 
                 fs::write(&local_path, content)?;
-                println!("  ✓ {}", filename);
+                println!("  ✓ {} ({})", filename, local_path.display());
                 pulled_files += 1;
             } else {
                 log::debug!("Skipped {}", filename);

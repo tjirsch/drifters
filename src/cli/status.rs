@@ -78,30 +78,30 @@ pub fn show_status() -> Result<()> {
                         .as_bytes();
 
                     if local_content == remote_content {
-                        println!("  {} - ✓ up to date", filename);
+                        println!("  {} ({}) - ✓ up to date", filename, file_path.display());
                     } else {
-                        println!("  {} - ↑ local changes not pushed", filename);
+                        println!("  {} ({}) - ↑ local changes not pushed", filename, file_path.display());
                     }
                 }
                 (true, false, false) => {
                     // Local exists but we haven't pushed, others have
-                    println!("  {} - ↓ not pushed from this machine (others have versions)", filename);
+                    println!("  {} ({}) - ↓ not pushed from this machine (others have versions)", filename, file_path.display());
                 }
                 (true, false, true) => {
                     // Local exists but nobody has pushed
-                    println!("  {} - ↑ not yet pushed", filename);
+                    println!("  {} ({}) - ↑ not yet pushed", filename, file_path.display());
                 }
                 (false, true, _) => {
                     // We've pushed but local file is missing
-                    println!("  {} - ⚠ pushed from this machine but local file missing", filename);
+                    println!("  {} ({}) - ⚠ pushed from this machine but local file missing", filename, file_path.display());
                 }
                 (false, false, false) => {
                     // Local missing, we haven't pushed, but others have
-                    println!("  {} - ↓ available from other machines", filename);
+                    println!("  {} ({}) - ↓ available from other machines", filename, file_path.display());
                 }
                 (false, false, true) => {
                     // Nobody has this file
-                    println!("  {} - ⚠ missing (local and all remotes)", filename);
+                    println!("  {} ({}) - ⚠ missing (local and all remotes)", filename, file_path.display());
                 }
             }
         }

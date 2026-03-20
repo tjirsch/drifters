@@ -4,6 +4,16 @@ All notable changes to Drifters are documented here.
 
 ---
 
+## [0.6.9] — 2026-03-20
+
+### Changed
+
+- All file listings (push, pull, status, diff, merge) now display the full local path alongside the filename
+  - Example: `✓ settings.json (~/.config/zed/settings.json)` instead of just `✓ settings.json`
+- Added `--dry-run` flag to `pull-app` command — shows what would change without writing any files (matching existing `merge-app --dry-run`)
+
+---
+
 ## [0.6.7] — 2026-03-19
 
 ### Changed

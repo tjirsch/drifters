@@ -146,6 +146,7 @@ No "last write wins" - true multi-machine intelligence.
 | **Sync** | |
 | `drifters push-app [app]` | Push local configs to repo |
 | `drifters pull-app [app]` | Pull and merge configs from all machines |
+| `drifters pull-app [app] --dry-run` | Show what would change without applying |
 | `drifters merge-app [app]` | Re-merge configs using current rules |
 | `drifters diff-app [app]` | Show diff without applying changes |
 | `drifters status` | Show per-file sync status |

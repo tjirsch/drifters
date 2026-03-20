@@ -78,8 +78,9 @@ drifters push-app --yolo   # Skip confirmation
 
 **Pull remote changes:**
 ```bash
-drifters pull-app [app]    # Interactive confirmation
-drifters pull-app --yolo   # Skip confirmation
+drifters pull-app [app]           # Interactive confirmation
+drifters pull-app --yolo          # Skip confirmation
+drifters pull-app [app] --dry-run # Preview changes without applying
 ```
 
 **Check status:**
@@ -236,6 +237,9 @@ drifters list-app
 
 # See status
 drifters status
+
+# Preview pull changes
+drifters pull-app --dry-run
 
 # Preview merge
 drifters merge-app --dry-run

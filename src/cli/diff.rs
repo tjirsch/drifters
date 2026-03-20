@@ -108,7 +108,7 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
 
             // Show diff if different
             if local_content != final_content {
-                println!("\n{}", filename);
+                println!("\n{} ({})", filename, local_path.display());
                 println!("{}", "-".repeat(60));
                 show_file_diff(&local_content, &final_content);
                 total_changes += 1;

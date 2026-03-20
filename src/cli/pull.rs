@@ -5,8 +5,8 @@ use crate::merge::intelligent_merge;
 use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
 use std::fs;
 
-pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
-    log::info!("Pulling configs (yolo: {})", yolo);
+pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Result<()> {
+    log::info!("Pulling configs (dry_run: {}, yolo: {})", dry_run, yolo);
 
     // Load local config
     let config = LocalConfig::load()?;
@@ -39,6 +39,10 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     } else {
         rules.apps.keys().cloned().collect()
     };
+
+    if dry_run {
+        println!("(Dry run - no changes will be applied)");
+    }
 
     let mut pulled_files = 0;
     let mut warnings = Vec::new();
@@ -119,9 +123,15 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 if merged_with_local == local_content {
                     log::debug!("{} is up to date", filename);
                     None
+                } else if dry_run {
+                    println!("\n  Changes in {} ({}):", filename, local_path.display());
+                    show_simple_diff(&local_content, &merged_with_local);
+                    println!("    (dry-run: would apply)");
+                    pulled_files += 1;
+                    None
                 } else if !yolo {
                     // Show diff and ask for confirmation
-                    println!("\n  Changes in {}:", filename);
+                    println!("\n  Changes in {} ({}):", filename, local_path.display());
                     show_simple_diff(&local_content, &merged_with_local);
                     let msg = format!("Apply changes to {}?", filename);
                     if confirm_operation(&msg, true)? {
@@ -134,7 +144,11 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 }
             } else {
                 // File doesn't exist locally - create it
-                if !yolo {
+                if dry_run {
+                    println!("  {} ({}) - would be created from remote", filename, local_path.display());
+                    pulled_files += 1;
+                    None
+                } else if !yolo {
                     let msg = format!("Create {} from remote?", filename);
                     if confirm_operation(&msg, true)? {
                         Some(merged_content)
@@ -153,9 +167,9 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 }
 
                 fs::write(&local_path, content)?;
-                println!("  ✓ {}", filename);
+                println!("  ✓ {} ({})", filename, local_path.display());
                 pulled_files += 1;
-            } else {
+            } else if !dry_run {
                 log::debug!("Skipped {}", filename);
             }
         }
@@ -175,7 +189,14 @@ pub fn pull_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     }
 
     if pulled_files > 0 {
-        println!("\n✓ Successfully pulled {} file(s)", pulled_files);
+        if dry_run {
+            println!(
+                "\nDry run complete. {} file(s) would change.",
+                pulled_files
+            );
+        } else {
+            println!("\n✓ Successfully pulled {} file(s)", pulled_files);
+        }
     }
 
     Ok(())

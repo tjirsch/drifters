@@ -95,8 +95,9 @@ pub fn merge_command(
             }
 
             println!(
-                "\n  {} (from {} machine{})",
+                "\n  {} ({}) (from {} machine{})",
                 filename,
+                local_path.display(),
                 all_versions.len(),
                 if all_versions.len() == 1 { "" } else { "s" }
             );

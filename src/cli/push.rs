@@ -119,7 +119,7 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
             fs::write(&dest_path, &content_to_sync)?;
             log::debug!("Wrote content to {:?}", dest_path);
 
-            println!("  ✓ {}", filename);
+            println!("  ✓ {} ({})", filename, file_path.display());
             pushed_files += 1;
         }
     }

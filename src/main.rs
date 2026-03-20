@@ -48,6 +48,9 @@ enum Commands {
     PullApp {
         /// Optional app name to pull (all if not specified)
         app_name: Option<String>,
+        /// Show what would change without applying
+        #[arg(long)]
+        dry_run: bool,
     },
     /// List all apps configured for sync (detailed)
     ListApp {
@@ -308,8 +311,8 @@ fn run() -> Result<()> {
         Commands::PushApp { app_name } => {
             cli::push::push_command(app_name, cli.yolo)
         }
-        Commands::PullApp { app_name } => {
-            cli::pull::pull_command(app_name, cli.yolo)
+        Commands::PullApp { app_name, dry_run } => {
+            cli::pull::pull_command(app_name, dry_run, cli.yolo)
         }
         Commands::ListApp { app_name } => {
             cli::list::list_apps(app_name)

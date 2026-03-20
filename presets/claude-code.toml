@@ -1,0 +1,57 @@
+# Claude Code - Anthropic's CLI for Claude
+# https://docs.anthropic.com/en/docs/claude-code
+#
+# This preset syncs your global (user-level) Claude Code configuration across
+# machines. It uses explicit includes so that unknown new files are never
+# accidentally synced.
+#
+# What gets synced:
+# - CLAUDE.md — global instructions applied to every project
+# - settings.json — permissions, enabled plugins, preferences
+# - rules/*.md — user-level rule files loaded into every conversation
+# - commands/*.md — user-defined slash commands (legacy, superseded by skills)
+# - skills/ — user-level skills with SKILL.md and reference files
+# - agents/*.md — user-level custom subagent definitions
+# - .mcp.json — MCP server configuration (use env var placeholders for secrets)
+#
+# What is NOT synced:
+# - settings.local.json — machine-specific overrides, may contain secrets
+# - .credentials.json — authentication credentials (Linux/Windows)
+# - projects/ — per-project memory and session state
+# - sessions/, cache/, debug/, plugins/ — ephemeral data
+#
+# SECURITY NOTE: If your .mcp.json contains hardcoded API keys or tokens
+# instead of environment variable references, exclude it by adding a
+# machine override. Prefer using env var expansion in .mcp.json:
+#   "env": { "API_KEY": "${MY_API_KEY}" }
+#
+# Usage:
+#   drifters load-preset claude-code
+#   drifters merge-app claude-code
+
+[apps.claude-code]
+include = [
+    # Global instructions — applied to every project
+    "~/.claude/CLAUDE.md",
+
+    # User settings — permissions, enabled plugins, preferences
+    "~/.claude/settings.json",
+
+    # MCP server configuration — use env var placeholders for secrets
+    "~/.claude/.mcp.json",
+
+    # User-level rules — loaded into every conversation
+    "~/.claude/rules/*.md",
+
+    # User-defined slash commands (legacy, superseded by skills)
+    "~/.claude/commands/*.md",
+
+    # User-level skills — available in all projects
+    "~/.claude/skills/*/SKILL.md",
+    "~/.claude/skills/*/assets/*",
+    "~/.claude/skills/*/scripts/*",
+    "~/.claude/skills/*/references/*.md",
+
+    # User-level custom subagent definitions
+    "~/.claude/agents/*.md",
+]

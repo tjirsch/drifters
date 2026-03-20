@@ -101,8 +101,8 @@ drifters push-app
 ```
 Setting up repository...
 Pushing configs for 'zed'...
-  ✓ settings.json
-  ✓ keymap.json
+  ✓ settings.json (~/.config/zed/settings.json)
+  ✓ keymap.json (~/.config/zed/keymap.json)
 
 Pushed 2 file(s) for 1 app(s)
 Commit and push these changes? [Y/n] y

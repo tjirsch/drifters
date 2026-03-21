@@ -167,6 +167,7 @@ Apps marked `no_merge = true` in sync-rules.toml are automatically excluded from
 | `drifters merge-app --dry-run` | Preview merge without applying |
 | **Config** | |
 | `drifters edit-config` | Open local drifters config file in your editor |
+| `drifters edit-app-files <app>` | Open one of an app's config files in your editor |
 | `drifters diff-app [app]` | Show diff against main |
 | `drifters diff-app [app] --against <branch>` | Show diff against a specific branch |
 | `drifters status` | Show per-file sync status |
@@ -607,12 +608,12 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### ✅ Implemented (v0.1 → current)
 - Core sync operations (`init`, `add-app`, `push-app`, `pull-app`)
-- Intelligent consensus-based merging
+- Branch-per-machine architecture with git-native merge + mergetool
+- Selective `merge-app <app>` and `no_merge` flag for per-app merge control
 - Section tags with exclude-only logic; error on unclosed blocks
 - Glob pattern support
 - OS-specific rules
-- Per-machine overrides
-- `merge-app` command for rule re-application
+- Per-machine overrides with `singular` flag for no-merge machines
 - Ephemeral repository strategy
 - Import/export commands for app definitions and rules
 - Version history and restore commands
@@ -623,6 +624,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - Consistent verb-object CLI naming convention
 - Shell completion (`bash`, `zsh`, `fish`, `powershell`) via `completion [shell] [--install]`; defaults to zsh + --install on macOS
 - `open-readme` command to download and open latest README
+- `edit-config`, `edit-rules`, `edit-app-files` editor commands
 - `editor` config option with `set-editor` command
 - `discover-presets` for auto-detecting installed apps
 - `-V / --version` flag

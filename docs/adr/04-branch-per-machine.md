@@ -45,7 +45,6 @@ A `singular: bool` flag on `MachineOverride` marks machines that should never me
 
 - **More branches**: Repository accumulates one branch per machine
 - **Extra step**: Users must explicitly run `merge-app` to share configs
-- **Migration needed**: Existing repos need to run `drifters migrate` to convert
 
 ### Removed
 

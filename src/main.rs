@@ -217,8 +217,6 @@ enum Commands {
     EditRules,
     /// Force-remove a stale lock file left behind after a crash or Ctrl-C
     Unlock,
-    /// Migrate an existing repo from the old machines/ directory layout to branch-per-machine
-    Migrate,
 }
 
 #[derive(Subcommand)]
@@ -295,7 +293,6 @@ fn run() -> Result<()> {
             | Commands::Completion { .. }
             | Commands::SetEditor { .. }
             | Commands::Unlock
-            | Commands::Migrate
     ) {
         if let Ok(mut config) = config::LocalConfig::load() {
             let _ = cli::self_update::maybe_check_for_updates(&mut config);
@@ -437,9 +434,6 @@ fn run() -> Result<()> {
         }
         Commands::Unlock => {
             cli::unlock::unlock()
-        }
-        Commands::Migrate => {
-            cli::migrate::migrate()
         }
     }
 }

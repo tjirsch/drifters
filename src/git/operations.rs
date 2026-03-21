@@ -100,6 +100,40 @@ pub fn commit_and_push(repo_path: &PathBuf, message: &str) -> Result<()> {
 pub fn pull_latest(repo_path: &PathBuf) -> Result<()> {
     log::info!("Pulling latest from {:?}", repo_path);
 
+    // Fetch first (always works even on empty repos)
+    let fetch = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["fetch", "origin"])
+        .output()?;
+
+    if !fetch.status.success() {
+        let stderr = String::from_utf8_lossy(&fetch.stderr).trim().to_string();
+        // Empty repos may fail to fetch — not an error
+        if !stderr.contains("no matching remote head") {
+            return Err(DriftersError::Git(format!(
+                "Failed to fetch from origin\nError: {}",
+                stderr
+            )));
+        }
+        log::debug!("Fetch found no remote head (empty repo?)");
+        return Ok(());
+    }
+
+    // Check if HEAD exists (repo has at least one commit)
+    let has_head = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if !has_head {
+        log::debug!("No HEAD commit, skipping pull (empty repo)");
+        return Ok(());
+    }
+
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_path)
@@ -108,6 +142,11 @@ pub fn pull_latest(repo_path: &PathBuf) -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        // "There is no tracking information" happens on branches with no upstream
+        if stderr.contains("no tracking information") || stderr.contains("You are not currently on a branch") {
+            log::debug!("No tracking branch, skipping pull");
+            return Ok(());
+        }
         return Err(DriftersError::Git(format!(
             "Failed to pull latest changes\nError: {}",
             stderr

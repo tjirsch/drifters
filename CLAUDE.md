@@ -32,7 +32,7 @@ Machines marked `singular: true` in sync-rules.toml can push/pull but `merge-app
 ### Core Modules
 
 - **`src/main.rs`** — CLI definition using clap derive. All commands defined in `Commands` enum, dispatched in `run()`. Global flag: `--verbose`.
-- **`src/cli/`** — One file per command (e.g., `push.rs`, `pull.rs`, `add.rs`). `common.rs` has shared helpers. `migrate.rs` converts old repos to the branch-per-machine layout.
+- **`src/cli/`** — One file per command (e.g., `push.rs`, `pull.rs`, `add.rs`). `common.rs` has shared helpers.
 - **`src/config/`** — Configuration types:
   - `local.rs` — `LocalConfig`: per-machine config at `~/.config/drifters/drifters.toml` (machine_id, repo_url, update settings, editor)
   - `sync_rules.rs` — `SyncRules`/`AppConfig`/`MachineOverride`: the shared repo config at `.drifters/sync-rules.toml`. `MachineOverride` has a `singular: bool` field.
@@ -64,3 +64,6 @@ Uses `thiserror` for the error enum and the crate's own `Result<T>` type (`error
 - ADRs in `docs/adr/` using MADR format
 - Presets for apps in `presets/` directory (TOML files)
 - Detailed import/export guide at `docs/IMPORT_EXPORT.md`
+
+## Migration
+- No code to support older versions or state is needed

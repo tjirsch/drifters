@@ -41,16 +41,12 @@ pub fn initialize(repo_url: String) -> Result<()> {
     let _cleanup = TempDirGuard(repo_path.clone());
 
     // Clone or init repository
-    let is_new_repo = if repo_path.exists() {
-        println!("Repository directory already exists");
-        false
-    } else {
+    if !repo_path.exists() {
         println!("Cloning repository...");
 
         match clone_repo(&repo_url, &repo_path) {
             Ok(_) => {
                 println!("✓ Repository cloned successfully");
-                false
             }
             Err(e) => {
                 log::warn!("Clone failed ({}), initializing empty repository", e);
@@ -58,13 +54,18 @@ pub fn initialize(repo_url: String) -> Result<()> {
                 init_repo(&repo_path)?;
                 set_remote_origin(&repo_path, &repo_url)?;
                 println!("✓ Empty repository initialized with remote");
-                true
             }
         }
-    };
+    } else {
+        println!("Repository directory already exists");
+    }
+
+    // Detect whether this repo needs bootstrapping (no .drifters/ dir means
+    // either a fresh init or an empty clone with no commits yet)
+    let needs_bootstrap = !repo_path.join(".drifters").exists();
 
     // Load or create machine registry
-    let mut registry = if is_new_repo {
+    let mut registry = if needs_bootstrap {
         MachineRegistry::new()
     } else {
         MachineRegistry::load(&repo_path).unwrap_or_else(|_| MachineRegistry::new())
@@ -87,8 +88,8 @@ pub fn initialize(repo_url: String) -> Result<()> {
     registry.save(&repo_path)?;
     println!("✓ Registered machine '{}' ({}) on branch '{}'", machine_id, os, machine_branch);
 
-    // Create sync rules if new repo
-    if is_new_repo {
+    // Create sync rules if repo needs bootstrapping
+    if needs_bootstrap {
         let rules = SyncRules::new();
         rules.save(&repo_path)?;
         println!("✓ Created sync-rules.toml");

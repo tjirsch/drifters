@@ -15,7 +15,6 @@ All notable changes to Drifters are documented here.
 ### New Commands
 
 - `merge-app` — now merges a machine branch into main (was: re-apply merge rules). Uses git's native merge. Supports `--from <machine>` and `--dry-run`.
-- `migrate` — converts existing repos from the old `machines/` directory layout to branch-per-machine.
 
 ### Changed
 

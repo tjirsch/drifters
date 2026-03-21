@@ -197,7 +197,6 @@ Machines marked `singular: true` in sync-rules.toml can push and pull but `merge
 | `drifters set-editor` | Show current preferred editor setting |
 | `drifters edit-rules` | Open `sync-rules.toml` in your editor and optionally save to the repository |
 | `drifters unlock` | Force-remove a stale lock file left behind after a crash or Ctrl-C |
-| `drifters migrate` | Migrate old repos from machines/ directory layout to branch-per-machine |
 
 ### The `merge-app` Command
 

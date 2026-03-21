@@ -1,7 +1,7 @@
 use crate::config::{LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
 use crate::git::{
-    checkout_branch, commit_merge, confirm_operation, merge_branch,
+    checkout_branch, commit_merge, confirm_operation, fetch_branch, merge_branch,
     merge_dry_run, run_mergetool, EphemeralRepoGuard,
 };
 
@@ -49,9 +49,13 @@ pub fn merge_command(
     // Make sure we're on main
     checkout_branch(repo_path, "main")?;
 
+    // Fetch the source branch so git knows about it (clone only gets main)
+    fetch_branch(repo_path, &source_branch)?;
+    let merge_ref = format!("origin/{}", source_branch);
+
     if dry_run {
         println!("(Dry run - showing what would change)");
-        match merge_dry_run(repo_path, &source_branch) {
+        match merge_dry_run(repo_path, &merge_ref) {
             Ok((clean, diff)) => {
                 if diff.is_empty() {
                     println!("\nNo changes to merge from '{}'.", source_branch);
@@ -82,7 +86,7 @@ pub fn merge_command(
 
     // Perform the merge
     println!("\nMerging '{}' into main...", source_branch);
-    match merge_branch(repo_path, &source_branch) {
+    match merge_branch(repo_path, &merge_ref) {
         Ok(()) => {
             println!("✓ Clean merge — no conflicts.");
         }

@@ -199,7 +199,7 @@ pub fn checkout_branch(repo_path: &PathBuf, branch_name: &str) -> Result<()> {
 }
 
 /// Fetch a specific branch from origin.
-fn fetch_branch(repo_path: &PathBuf, branch_name: &str) -> Result<()> {
+pub fn fetch_branch(repo_path: &PathBuf, branch_name: &str) -> Result<()> {
     git_run(repo_path, &["fetch", "origin", branch_name])?;
     Ok(())
 }

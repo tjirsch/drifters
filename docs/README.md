@@ -99,6 +99,12 @@ drifters merge-app zed                    # Merge only zed (selective)
 drifters merge-app --from mac01           # Merge another machine's branch
 ```
 
+### Editing App Config Files
+
+```bash
+drifters edit-app-files zed    # Pick from zed's config files and open in editor
+```
+
 ## Common Patterns
 
 ### Multi-Platform Config

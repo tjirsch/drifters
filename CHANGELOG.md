@@ -4,6 +4,14 @@ All notable changes to Drifters are documented here.
 
 ---
 
+## [0.6.17] — 2026-03-21
+
+### New Commands
+
+- **`edit-app-files <app>`** — Open one of an app's config files in your editor. Resolves the app's fileset for the current machine and OS, shows files that exist locally as a numbered list, and opens the selected file.
+
+---
+
 ## [0.6.15] — 2026-03-21
 
 ### New Features

@@ -129,6 +129,7 @@ mod tests {
             exclude_macos: vec![],
             exclude_linux: vec![],
             exclude_windows: vec![],
+            no_merge: false,
             machines: Default::default(),
         };
 
@@ -148,6 +149,7 @@ mod tests {
             exclude_macos: vec![],
             exclude_linux: vec![],
             exclude_windows: vec![],
+            no_merge: false,
             machines: Default::default(),
         };
 

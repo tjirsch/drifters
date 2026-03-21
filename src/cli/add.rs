@@ -105,6 +105,7 @@ pub fn add_app(app_name: String) -> Result<()> {
         exclude_macos: vec![],
         exclude_linux: vec![],
         exclude_windows: vec![],
+        no_merge: false,
         machines: Default::default(),
     };
 

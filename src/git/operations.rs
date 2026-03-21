@@ -198,6 +198,13 @@ pub fn checkout_branch(repo_path: &PathBuf, branch_name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Checkout specific paths from a ref into the working tree.
+/// e.g. `git checkout origin/machines/tm1 -- apps/zed/`
+pub fn checkout_paths(repo_path: &PathBuf, source_ref: &str, pathspec: &str) -> Result<()> {
+    git_run(repo_path, &["checkout", source_ref, "--", pathspec])?;
+    Ok(())
+}
+
 /// Fetch a specific branch from origin.
 pub fn fetch_branch(repo_path: &PathBuf, branch_name: &str) -> Result<()> {
     git_run(repo_path, &["fetch", "origin", branch_name])?;

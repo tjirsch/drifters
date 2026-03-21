@@ -42,6 +42,10 @@ pub struct AppConfig {
     #[serde(rename = "exclude-windows", default)]
     pub exclude_windows: Vec<String>,
 
+    /// If true, this app is never merged into main during merge-app.
+    #[serde(default)]
+    pub no_merge: bool,
+
     /// Machine-specific overrides
     #[serde(default)]
     pub machines: HashMap<String, MachineOverride>,

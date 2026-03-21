@@ -4,11 +4,34 @@ All notable changes to Drifters are documented here.
 
 ---
 
+## [0.6.15] — 2026-03-21
+
+### New Features
+
+- **Selective merge-app**: `merge-app <app>` now merges only that app's files into main using pathspec checkout instead of a full git merge. `merge-app` without an app name still performs a full branch merge.
+- **`no_merge` flag**: Added `no_merge = true` field to `AppConfig` in sync-rules.toml. Apps with this flag are automatically excluded from full-branch merges. When no_merge apps exist, remaining apps are merged selectively.
+
+### Changed
+
+- `merge-app` now supports two modes: selective (with app name) and full branch merge (without)
+- Added `checkout_paths()` git helper for pathspec-based checkout
+
+---
+
+## [0.6.14] — 2026-03-21
+
+### Bug Fixes
+
+- **Fixed merge-app failing with "not something we can merge"**: After cloning, the machine branch only exists on the remote. Now fetches the branch from origin before merging via `origin/<branch>`.
+- Made `fetch_branch()` public and exported it from git module.
+
+---
+
 ## [0.7.0] — 2026-03-21
 
 ### Breaking Changes
 
-- **Branch-per-machine architecture**: Each machine now gets its own git branch (`machines/<machine_id>`). `main` is the merged/common state. Existing repos must run `drifters migrate` to convert.
+- **Branch-per-machine architecture**: Each machine now gets its own git branch (`machines/<machine_id>`). `main` is the merged/common state.
 - **Removed `--yolo` flag**: All operations now require explicit confirmation. The shell hook runs `pull-app` without the flag.
 - **Removed custom merge logic**: `src/merge/intelligent.rs` replaced by git's native `merge` + `mergetool`.
 

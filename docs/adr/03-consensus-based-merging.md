@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 04: Branch-per-machine architecture](04-branch-per-machine.md)
 
 ## Context
 

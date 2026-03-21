@@ -36,13 +36,13 @@ export LOCAL_PATH="/home/user/specific/path"
 # drifters::exclude::stop
 ```
 
-### Intelligent Merging
+### Branch-per-machine Merging
 
-When pulling, Drifters:
-1. Collects versions from ALL machines
-2. Finds consensus (majority wins)
-3. Prefers current machine on ties
-4. Preserves local exclude sections
+Each machine has its own git branch (`machines/<machine_id>`):
+1. `push-app` pushes to your machine's branch
+2. `merge-app` merges your branch into main (or selectively per app)
+3. `pull-app` pulls from main (or `--from <machine>`)
+4. Local exclude sections are always preserved
 
 ## Workflows
 
@@ -72,15 +72,14 @@ See: [Editing Sync Rules](EDITING_SYNC_RULES.md)
 
 **Push local changes:**
 ```bash
-drifters push-app [app]    # Interactive confirmation
-drifters push-app --yolo   # Skip confirmation
+drifters push-app [app]    # Push to your machine's branch
 ```
 
 **Pull remote changes:**
 ```bash
-drifters pull-app [app]           # Interactive confirmation
-drifters pull-app --yolo          # Skip confirmation
-drifters pull-app [app] --dry-run # Preview changes without applying
+drifters pull-app [app]              # Pull from main
+drifters pull-app [app] --from mac01 # Pull from a specific machine
+drifters pull-app [app] --dry-run    # Preview changes without applying
 ```
 
 **Check status:**
@@ -89,16 +88,15 @@ drifters status            # See what's synced/changed
 drifters list-app          # List all apps
 ```
 
-### Re-applying Rules
+### Merging to Main
 
-After editing sync-rules.toml:
+After pushing to your machine branch:
 
 ```bash
-drifters merge-app --dry-run              # Preview changes
-drifters merge-app                        # Apply to all apps
-drifters merge-app zed                    # Apply to specific app
-drifters merge-app --machine mac01        # Test merging from one machine
-drifters merge-app --os macos --dry-run   # Test OS-specific rules
+drifters merge-app --dry-run              # Preview full merge
+drifters merge-app                        # Merge all apps (full git merge)
+drifters merge-app zed                    # Merge only zed (selective)
+drifters merge-app --from mac01           # Merge another machine's branch
 ```
 
 ## Common Patterns
@@ -174,18 +172,20 @@ set local_option
 
 ### Repository Structure
 
+Each machine has its own branch (`machines/<machine_id>`). On each branch:
+
 ```
-your-configs-repo/
+machines/mac01 branch:
 ├── .drifters/
-│   └── sync-rules.toml    # All app definitions
+│   ├── sync-rules.toml    # Central configuration (on main)
+│   └── machines.toml      # Machine registry (on main)
 └── apps/
     └── zed/
-        └── machines/
-            ├── mac01/     # Machine 1's config state
-            └── linux02/   # Machine 2's config state
+        ├── settings.json
+        └── keymap.json
 ```
 
-No `merged/` directory - intelligent merging happens at pull time.
+`main` contains the merged state after running `merge-app`.
 
 ### Ephemeral Strategy
 
@@ -201,8 +201,7 @@ Benefits: Always fresh, no stale state.
 
 ```
 ~/.config/drifters/
-├── drifters.toml        # User settings (editor, update frequency)
-├── drifters.toml        # Machine ID, repo URL, and user settings
+├── drifters.toml        # Machine ID, repo URL, editor, update settings
 └── tmp-repo/            # Temporary (deleted after each command)
 ```
 
@@ -252,7 +251,7 @@ See [Quick Start - Troubleshooting](QUICK_START.md#troubleshooting)
 Common issues:
 - **Authentication errors** - Check SSH setup
 - **Repo already exists** - Clear temp: `rm -rf ~/.config/drifters/tmp-repo`
-- **Changes not syncing** - Run `drifters merge` to re-apply rules
+- **Changes not syncing** - Run `drifters merge-app` to merge your branch into main
 - **Syntax errors** - Validate TOML syntax
 
 ## Contributing

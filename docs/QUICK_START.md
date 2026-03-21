@@ -145,8 +145,11 @@ On your second machine, edit the config:
 # Edit settings
 vim ~/.config/zed/settings.json
 
-# Push the change
+# Push the change to your machine's branch
 drifters push-app zed
+
+# Merge into main so other machines can pull it
+drifters merge-app zed
 
 # On first machine, pull it
 drifters pull-app zed

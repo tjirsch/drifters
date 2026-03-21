@@ -29,13 +29,15 @@ Each machine gets its own git branch (`machines/<machine_id>`). `main` is the me
 
 Machines marked `singular: true` in sync-rules.toml can push/pull but `merge-app` refuses to merge them into main.
 
+When `merge-app <app>` is given a specific app name, it performs a selective merge (checkout pathspec) instead of a full git merge. Apps with `no_merge = true` in `AppConfig` are automatically excluded from full-branch merges.
+
 ### Core Modules
 
 - **`src/main.rs`** — CLI definition using clap derive. All commands defined in `Commands` enum, dispatched in `run()`. Global flag: `--verbose`.
 - **`src/cli/`** — One file per command (e.g., `push.rs`, `pull.rs`, `add.rs`). `common.rs` has shared helpers.
 - **`src/config/`** — Configuration types:
   - `local.rs` — `LocalConfig`: per-machine config at `~/.config/drifters/drifters.toml` (machine_id, repo_url, update settings, editor)
-  - `sync_rules.rs` — `SyncRules`/`AppConfig`/`MachineOverride`: the shared repo config at `.drifters/sync-rules.toml`. `MachineOverride` has a `singular: bool` field.
+  - `sync_rules.rs` — `SyncRules`/`AppConfig`/`MachineOverride`: the shared repo config at `.drifters/sync-rules.toml`. `MachineOverride` has a `singular: bool` field. `AppConfig` has a `no_merge: bool` field.
   - `fileset.rs` — Glob pattern resolution for include/exclude rules
   - `machines.rs` — `MachineRegistry` for machine ID tracking. `MachineInfo` includes `branch: Option<String>`.
 - **`src/git/`** — Git operations:

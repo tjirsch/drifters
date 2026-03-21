@@ -213,6 +213,8 @@ enum Commands {
         #[arg(long)]
         clear: bool,
     },
+    /// Open the local drifters config file in your editor
+    EditConfig,
     /// Open sync-rules.toml in your editor and optionally save changes to the repository
     EditRules,
     /// Force-remove a stale lock file left behind after a crash or Ctrl-C
@@ -428,6 +430,9 @@ fn run() -> Result<()> {
                 }
             }
             Ok(())
+        }
+        Commands::EditConfig => {
+            cli::edit_config::edit_config()
         }
         Commands::EditRules => {
             cli::edit_rules::edit_rules()

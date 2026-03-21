@@ -2,6 +2,7 @@ pub mod add;
 pub mod common;
 pub mod completion;
 pub mod diff;
+pub mod edit_config;
 pub mod edit_rules;
 pub mod exclude;
 pub mod export;

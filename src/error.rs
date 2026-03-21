@@ -38,6 +38,9 @@ pub enum DriftersError {
 
     #[error("User cancelled operation")]
     UserCancelled,
+
+    #[error("Merge conflict: {0}")]
+    MergeConflict(String),
 }
 
 pub type Result<T> = std::result::Result<T, DriftersError>;

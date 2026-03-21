@@ -1,220 +1,139 @@
-use crate::config::{resolve_fileset, LocalConfig, SyncRules};
-use crate::error::Result;
-use crate::git::{collect_machine_versions, EphemeralRepoGuard};
-use crate::merge::intelligent_merge;
-use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
-use std::fs;
+use crate::config::{LocalConfig, SyncRules};
+use crate::error::{DriftersError, Result};
+use crate::git::{
+    checkout_branch, commit_merge, confirm_operation, merge_branch,
+    merge_dry_run, run_mergetool, EphemeralRepoGuard,
+};
 
 pub fn merge_command(
     app_name: Option<String>,
-    filter_machine: Option<String>,
-    filter_os: Option<String>,
+    from: Option<String>,
     dry_run: bool,
-    yolo: bool,
 ) -> Result<()> {
-    log::info!("Running merge with current rules");
+    log::info!("Merging machine branch into main");
 
     // Load config
     let local_config = LocalConfig::load()?;
+
+    // Determine source machine
+    let source_machine = from.unwrap_or_else(|| local_config.machine_id.clone());
+    let source_branch = format!("machines/{}", source_machine);
+
+    // Set up ephemeral repo on main
+    println!("Setting up repository...");
     let repo_guard = EphemeralRepoGuard::new(&local_config)?;
     let repo_path = repo_guard.path();
 
-    // Guard: detect stale machine IDs (caused by rename-machine / remove-machine
-    // run from another machine while this machine was offline).
+    // Guard: detect stale machine IDs
     crate::cli::common::verify_machine_registration(&local_config, repo_path)?;
 
-    // Load sync rules (potentially updated)
-    let sync_rules = SyncRules::load(repo_path)?;
+    // Check if the source machine is singular
+    let rules = SyncRules::load(repo_path)?;
+    if is_singular_machine(&source_machine, &rules) {
+        println!(
+            "Machine '{}' is marked as singular — its branch should not be merged into main.",
+            source_machine
+        );
+        println!("To change this, remove `singular = true` from the machine's override in sync-rules.toml.");
+        return Ok(());
+    }
 
-    // Determine which apps to merge
-    let apps_to_merge: Vec<String> = match app_name {
-        Some(name) => {
-            if !sync_rules.apps.contains_key(&name) {
-                return Err(crate::error::DriftersError::AppNotFound(name));
-            }
-            vec![name]
+    // If app_name is specified, we note it but git merge operates on whole branches
+    if let Some(ref name) = app_name {
+        if !rules.apps.contains_key(name) {
+            return Err(DriftersError::AppNotFound(name.clone()));
         }
-        None => sync_rules.apps.keys().cloned().collect(),
-    };
+        println!("Note: git merge operates on entire branches. Merging all files from '{}'.", source_branch);
+    }
 
-    println!("Re-merging with current rules...");
-    if let Some(ref machine) = filter_machine {
-        println!("Considering only machine: {}", machine);
-    }
-    if let Some(ref os) = filter_os {
-        println!("Using OS rules for: {}", os);
-    }
+    // Make sure we're on main
+    checkout_branch(repo_path, "main")?;
+
     if dry_run {
-        println!("(Dry run - no changes will be applied)");
+        println!("(Dry run - showing what would change)");
+        match merge_dry_run(repo_path, &source_branch) {
+            Ok((clean, diff)) => {
+                if diff.is_empty() {
+                    println!("\nNo changes to merge from '{}'.", source_branch);
+                } else if clean {
+                    println!("\nClean merge from '{}':", source_branch);
+                    println!("{}", diff);
+                } else {
+                    println!("\nMerge from '{}' would have conflicts:", source_branch);
+                    println!("{}", diff);
+                }
+            }
+            Err(e) => {
+                println!("Could not perform dry-run merge: {}", e);
+            }
+        }
+        return Ok(());
     }
 
-    let mut total_changes = 0;
+    // Confirm
+    println!(
+        "\nMerge '{}' into main?",
+        source_branch
+    );
+    if !confirm_operation("Proceed?", true)? {
+        println!("Cancelled.");
+        return Ok(());
+    }
 
-    // For each app
-    for app in apps_to_merge {
-        println!("\n{}", "=".repeat(60));
-        println!("App: {}", app);
+    // Perform the merge
+    println!("\nMerging '{}' into main...", source_branch);
+    match merge_branch(repo_path, &source_branch) {
+        Ok(()) => {
+            println!("✓ Clean merge — no conflicts.");
+        }
+        Err(DriftersError::MergeConflict(msg)) => {
+            println!("\n⚠️  Merge conflicts detected:");
+            println!("{}", msg);
+            println!("\nLaunching mergetool to resolve conflicts...");
 
-        let app_config = sync_rules
-            .apps
-            .get(&app)
-            .ok_or_else(|| crate::error::DriftersError::AppNotFound(app.clone()))?;
+            run_mergetool(repo_path)?;
 
-        // Resolve fileset using CURRENT rules
-        let target_os = filter_os
-            .as_deref()
-            .unwrap_or(std::env::consts::OS);
-        let fileset = resolve_fileset(app_config, &local_config.machine_id, target_os)?;
-
-        println!("Files in fileset: {}", fileset.len());
-
-        // For each file in fileset
-        for local_path in fileset {
-            let filename = local_path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .ok_or_else(|| crate::error::DriftersError::Config(format!(
-                    "Invalid filename in path: {:?}",
-                    local_path
-                )))?;
-
-            // Collect machine versions (filtered if requested)
-            let machines_dir = repo_path.join("apps").join(&app).join("machines");
-
-            if !machines_dir.exists() {
-                log::debug!("No machines directory for app '{}'", app);
-                continue;
-            }
-
-            let all_versions =
-                collect_machine_versions(repo_path, &machines_dir, filename, filter_machine.as_deref())?;
-
-            if all_versions.is_empty() {
-                log::debug!("No versions found for {}", filename);
-                continue;
-            }
-
-            println!(
-                "\n  {} ({}) (from {} machine{})",
-                filename,
-                local_path.display(),
-                all_versions.len(),
-                if all_versions.len() == 1 { "" } else { "s" }
+            // After mergetool, commit the resolution
+            let merge_msg = format!(
+                "Merge {} into main (conflicts resolved)",
+                source_branch
             );
-
-            // Read current local state
-            let current_local = if local_path.exists() {
-                Some(fs::read_to_string(&local_path)?)
-            } else {
-                None
-            };
-
-            // Run intelligent merge with CURRENT rules
-            let merged_content =
-                intelligent_merge(&all_versions, &local_config.machine_id, filename, app_config)?;
-
-            // Apply section merging if needed
-            let final_content = if let Some(ref local) = current_local {
-                let comment = detect_comment_syntax(filename);
-                merge_synced_content(local, &merged_content, comment)?
-            } else {
-                merged_content
-            };
-
-            // Compare with current local
-            if let Some(ref local) = current_local {
-                if local == &final_content {
-                    println!("    No changes");
-                    continue;
-                }
-            }
-
-            // Show diff
-            if !yolo {
-                show_file_diff(
-                    filename,
-                    current_local.as_deref().unwrap_or(""),
-                    &final_content,
-                )?;
-            }
-
-            total_changes += 1;
-
-            // Apply if not dry-run
-            if !dry_run {
-                if !yolo {
-                    if !confirm(&format!("Apply changes to {}?", filename))? {
-                        continue;
-                    }
-                }
-
-                // Create parent directories if needed
-                if let Some(parent) = local_path.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-
-                fs::write(&local_path, final_content)?;
-                println!("    ✓ Applied");
-            } else {
-                println!("    (dry-run: would apply)");
-            }
+            commit_merge(repo_path, &merge_msg)?;
+            println!("✓ Conflicts resolved and committed.");
         }
+        Err(e) => return Err(e),
     }
 
-    println!("\n{}", "=".repeat(60));
-    if dry_run {
-        println!(
-            "Dry run complete. {} file{} would change.",
-            total_changes,
-            if total_changes == 1 { "" } else { "s" }
-        );
-    } else {
-        println!(
-            "Merge complete. {} file{} updated.",
-            total_changes,
-            if total_changes == 1 { "" } else { "s" }
-        );
+    // Push main
+    println!("\nPushing main...");
+    // Use commit_and_push which handles the push part
+    // But we already committed via merge, so we just need to push
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["push", "-u", "origin", "main"])
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(DriftersError::Git(format!(
+            "Failed to push main: {}", stderr
+        )));
     }
+
+    println!("✓ Successfully merged '{}' into main.", source_branch);
 
     Ok(())
 }
 
-/// Show diff for a file
-fn show_file_diff(_filename: &str, old: &str, new: &str) -> Result<()> {
-    use similar::TextDiff;
-
-    let diff = TextDiff::from_lines(old, new);
-
-    println!("    Changes:");
-    let mut changes = 0;
-    for change in diff.iter_all_changes() {
-        let sign = match change.tag() {
-            similar::ChangeTag::Delete => "-",
-            similar::ChangeTag::Insert => "+",
-            similar::ChangeTag::Equal => " ",
-        };
-        print!("      {}{}", sign, change);
-        if sign != " " {
-            changes += 1;
-        }
-        if changes >= 20 {
-            println!("      ... (more changes)");
-            break;
+/// Check if a machine is marked as singular in sync-rules.
+fn is_singular_machine(machine_id: &str, rules: &SyncRules) -> bool {
+    for app_config in rules.apps.values() {
+        if let Some(override_config) = app_config.machines.get(machine_id) {
+            if override_config.singular {
+                return true;
+            }
         }
     }
-
-    Ok(())
-}
-
-/// Simple confirmation prompt
-fn confirm(msg: &str) -> Result<bool> {
-    use std::io::{self, Write};
-
-    print!("{} [y/N] ", msg);
-    io::stdout().flush()?;
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-
-    Ok(input.trim().to_lowercase() == "y")
+    false
 }

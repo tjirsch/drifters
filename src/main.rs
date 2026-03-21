@@ -2,7 +2,6 @@ mod cli;
 mod config;
 mod error;
 mod git;
-mod merge;
 mod parser;
 mod sync;
 
@@ -20,9 +19,6 @@ pub struct Cli {
 
     #[arg(short, long, global = true)]
     verbose: bool,
-
-    #[arg(long, global = true)]
-    yolo: bool,
 }
 
 #[derive(Subcommand)]
@@ -39,18 +35,21 @@ enum Commands {
         /// App name to add
         app_name: String,
     },
-    /// Push local configs to repository
+    /// Push local configs to this machine's branch
     PushApp {
         /// Optional app name to push (all if not specified)
         app_name: Option<String>,
     },
-    /// Pull configs from repository
+    /// Pull configs from a branch (default: main)
     PullApp {
         /// Optional app name to pull (all if not specified)
         app_name: Option<String>,
         /// Show what would change without applying
         #[arg(long)]
         dry_run: bool,
+        /// Pull from a specific machine's branch instead of main
+        #[arg(long)]
+        from: Option<String>,
     },
     /// List all apps configured for sync (detailed)
     ListApp {
@@ -89,23 +88,22 @@ enum Commands {
     },
     /// Show sync status
     Status,
-    /// Show diff without applying changes
+    /// Show diff of this machine's branch against main
     DiffApp {
         /// Optional app name to diff
         app_name: Option<String>,
+        /// Compare against a specific branch instead of main
+        #[arg(long)]
+        against: Option<String>,
     },
-    /// Re-merge configs using current rules
+    /// Merge a machine branch into main (or another branch)
     MergeApp {
-        /// Optional app name to merge
+        /// Optional app name to merge (all if not specified)
         app_name: Option<String>,
 
-        /// Only consider state from specific machine
+        /// Source machine branch to merge (default: current machine)
         #[arg(long)]
-        machine: Option<String>,
-
-        /// Use OS-specific rules for this OS
-        #[arg(long)]
-        os: Option<String>,
+        from: Option<String>,
 
         /// Show what would change without applying
         #[arg(long)]
@@ -309,10 +307,10 @@ fn run() -> Result<()> {
             cli::add::add_app(app_name)
         }
         Commands::PushApp { app_name } => {
-            cli::push::push_command(app_name, cli.yolo)
+            cli::push::push_command(app_name)
         }
-        Commands::PullApp { app_name, dry_run } => {
-            cli::pull::pull_command(app_name, dry_run, cli.yolo)
+        Commands::PullApp { app_name, dry_run, from } => {
+            cli::pull::pull_command(app_name, dry_run, from)
         }
         Commands::ListApp { app_name } => {
             cli::list::list_apps(app_name)
@@ -332,11 +330,11 @@ fn run() -> Result<()> {
         Commands::Status => {
             cli::status::show_status()
         }
-        Commands::DiffApp { app_name } => {
-            cli::diff::show_diff(app_name)
+        Commands::DiffApp { app_name, against } => {
+            cli::diff::show_diff(app_name, against)
         }
-        Commands::MergeApp { app_name, machine, os, dry_run } => {
-            cli::merge::merge_command(app_name, machine, os, dry_run, cli.yolo)
+        Commands::MergeApp { app_name, from, dry_run } => {
+            cli::merge::merge_command(app_name, from, dry_run)
         }
         Commands::ImportApp { app_name, file } => {
             cli::import::import_app(app_name, file)

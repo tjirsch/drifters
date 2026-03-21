@@ -1,6 +1,6 @@
 use crate::config::LocalConfig;
 use crate::error::{DriftersError, Result};
-use crate::git::{clone_repo, pull_latest};
+use crate::git::{checkout_or_create_branch, clone_repo, pull_latest};
 use std::path::PathBuf;
 
 // ─── Lock constants ──────────────────────────────────────────────────────────
@@ -137,15 +137,13 @@ fn release_lock(path: &PathBuf) {
 /// 1. Acquires a lock file before touching the shared temp repo.
 /// 2. Sets up (clones or pulls) the ephemeral repo.
 /// 3. Releases the lock and cleans up the repo on `Drop`.
-///
-/// Prevents two concurrent drifters processes from corrupting the shared
-/// temp repo at `~/.config/drifters/tmp-repo`.
 pub struct EphemeralRepoGuard {
     repo_path: PathBuf,
     lock_path: PathBuf,
 }
 
 impl EphemeralRepoGuard {
+    /// Clone/pull the repo and stay on the default branch (main).
     pub fn new(config: &LocalConfig) -> Result<Self> {
         let lock_path = lock_path()?;
 
@@ -163,6 +161,14 @@ impl EphemeralRepoGuard {
                 Err(e)
             }
         }
+    }
+
+    /// Clone/pull the repo and checkout the specified branch.
+    /// Creates the branch from `main` if it doesn't exist.
+    pub fn new_on_branch(config: &LocalConfig, branch: &str) -> Result<Self> {
+        let guard = Self::new(config)?;
+        checkout_or_create_branch(&guard.repo_path, branch, "main")?;
+        Ok(guard)
     }
 
     pub fn path(&self) -> &PathBuf {

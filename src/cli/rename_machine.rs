@@ -6,7 +6,7 @@ use std::io::{self, Write};
 pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
     log::info!("Renaming machine '{}' → '{}'", old_id, new_id);
 
-    // ── Validate new_id before touching anything ──────────────────────────────
+    // Validate new_id
     if new_id.is_empty() {
         return Err(DriftersError::Config(
             "New machine ID cannot be empty.".to_string(),
@@ -24,18 +24,15 @@ pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
         )));
     }
 
-    // ── Load config and set up ephemeral repo ─────────────────────────────────
     let mut config = LocalConfig::load()?;
 
     println!("Fetching latest registry...");
     let repo_guard = EphemeralRepoGuard::new(&config)?;
     let repo_path = repo_guard.path();
 
-    // ── Load registry and rules ───────────────────────────────────────────────
     let mut registry = MachineRegistry::load(repo_path)?;
     let mut rules = SyncRules::load(repo_path)?;
 
-    // ── Validate old_id exists ────────────────────────────────────────────────
     if !registry.machines.contains_key(&old_id) {
         let known: Vec<_> = registry.machines.keys().cloned().collect();
         return Err(DriftersError::Config(format!(
@@ -49,7 +46,6 @@ pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
         )));
     }
 
-    // ── Validate new_id is not already taken ─────────────────────────────────
     if registry.machines.contains_key(&new_id) {
         return Err(DriftersError::Config(format!(
             "Machine ID '{}' is already registered. Choose a different ID.",
@@ -57,17 +53,15 @@ pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
         )));
     }
 
-    // ── Confirm with user ─────────────────────────────────────────────────────
+    let old_branch = format!("machines/{}", old_id);
+    let new_branch = format!("machines/{}", new_id);
+
     println!(
         "\nRename machine '{}' → '{}'",
         old_id, new_id
     );
     println!("This will:");
-    println!(
-        "  • Rename apps/<app>/machines/{old}/ → apps/<app>/machines/{new}/ in the repo",
-        old = old_id,
-        new = new_id
-    );
+    println!("  • Rename branch '{}' → '{}'", old_branch, new_branch);
     println!("  • Update the machine registry (.drifters/machines.toml)");
     println!("  • Update machine overrides in sync-rules.toml");
     if old_id == config.machine_id {
@@ -78,37 +72,50 @@ pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
     }
     io::stdout().flush()?;
 
-    let msg = format!("Proceed with rename?");
-    if !confirm_operation(&msg, false)? {
+    if !confirm_operation("Proceed with rename?", false)? {
         println!("Cancelled.");
         return Ok(());
     }
 
-    // ── Rename directories in each app ────────────────────────────────────────
-    let apps_dir = repo_path.join("apps");
-    let mut dirs_renamed = 0usize;
+    // Rename the branch: create new from old, delete old
+    // First, fetch the old branch
+    let _ = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["fetch", "origin", &old_branch])
+        .output();
 
-    if apps_dir.exists() {
-        for entry in std::fs::read_dir(&apps_dir)? {
-            let app_dir = entry?.path();
-            if !app_dir.is_dir() {
-                continue;
-            }
-            let old_machine_dir = app_dir.join("machines").join(&old_id);
-            let new_machine_dir = app_dir.join("machines").join(&new_id);
-            if old_machine_dir.exists() {
-                std::fs::rename(&old_machine_dir, &new_machine_dir)?;
-                dirs_renamed += 1;
-                log::debug!(
-                    "Renamed {:?} → {:?}",
-                    old_machine_dir,
-                    new_machine_dir
-                );
-            }
-        }
-    }
+    // Create new branch from old
+    let _ = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["branch", &new_branch, &format!("origin/{}", old_branch)])
+        .output();
 
-    // ── Rename machine-specific overrides in SyncRules ────────────────────────
+    // Push new branch
+    let _ = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["push", "-u", "origin", &new_branch])
+        .output();
+
+    // Delete old remote branch
+    let _ = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["push", "origin", "--delete", &old_branch])
+        .output();
+
+    // Delete old local branch
+    let _ = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["branch", "-D", &old_branch])
+        .output();
+
+    println!("  ✓ Branch renamed: {} → {}", old_branch, new_branch);
+
+    // Rename machine-specific overrides in SyncRules
     let mut overrides_renamed = 0usize;
     for app_config in rules.apps.values_mut() {
         if let Some(info) = app_config.machines.remove(&old_id) {
@@ -117,26 +124,27 @@ pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
         }
     }
 
-    // ── Rename entry in MachineRegistry ──────────────────────────────────────
-    let machine_info = registry.machines.remove(&old_id).ok_or_else(|| {
+    // Rename entry in MachineRegistry
+    let mut machine_info = registry.machines.remove(&old_id).ok_or_else(|| {
         DriftersError::Config(format!(
             "Machine '{}' disappeared from registry during rename",
             old_id
         ))
     })?;
+    machine_info.branch = Some(new_branch.clone());
     registry.machines.insert(new_id.clone(), machine_info);
 
-    // ── Persist changes ───────────────────────────────────────────────────────
+    // Persist changes
     registry.save(repo_path)?;
     rules.save(repo_path)?;
 
-    // ── Commit and push ───────────────────────────────────────────────────────
+    // Commit and push
     commit_and_push(
         repo_path,
         &format!("rename machine '{}' to '{}'", old_id, new_id),
     )?;
 
-    // ── Update local config if this is the current machine ────────────────────
+    // Update local config if this is the current machine
     if old_id == config.machine_id {
         config.machine_id = new_id.clone();
         config.save()?;
@@ -150,12 +158,6 @@ pub fn rename_machine(old_id: String, new_id: String) -> Result<()> {
         "\n✓ Machine '{}' renamed to '{}'",
         old_id, new_id
     );
-    if dirs_renamed > 0 {
-        println!(
-            "  Renamed config directories in {} app(s)",
-            dirs_renamed
-        );
-    }
     if overrides_renamed > 0 {
         println!(
             "  Updated machine overrides in {} app(s)",

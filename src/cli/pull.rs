@@ -1,27 +1,35 @@
 use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::{DriftersError, Result};
-use crate::git::{collect_machine_versions, confirm_operation, EphemeralRepoGuard};
-use crate::merge::intelligent_merge;
+use crate::git::{confirm_operation, read_app_files, EphemeralRepoGuard};
 use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
 use std::fs;
 
-pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Result<()> {
-    log::info!("Pulling configs (dry_run: {}, yolo: {})", dry_run, yolo);
+pub fn pull_command(
+    app_name: Option<String>,
+    dry_run: bool,
+    from: Option<String>,
+) -> Result<()> {
+    log::info!("Pulling configs (dry_run: {}, from: {:?})", dry_run, from);
 
     // Load local config
     let config = LocalConfig::load()?;
 
-    // Set up ephemeral repo (clones/pulls automatically, cleans up on drop)
+    // Determine source branch
+    let source_branch = match &from {
+        Some(machine) => format!("machines/{}", machine),
+        None => "main".to_string(),
+    };
+
+    // Set up ephemeral repo on the source branch
     println!("Setting up repository...");
-    let repo_guard = EphemeralRepoGuard::new(&config)?;
+    let repo_guard = EphemeralRepoGuard::new_on_branch(&config, &source_branch)?;
     let repo_path = repo_guard.path();
 
-    // Guard: detect stale machine IDs (caused by rename-machine / remove-machine
-    // run from another machine while this machine was offline).
+    // Guard: detect stale machine IDs
     crate::cli::common::verify_machine_registration(&config, repo_path)?;
 
-    // Load sync rules (may have been updated by other machines)
-    let rules = SyncRules::load(repo_path)?;
+    // Load sync rules (from main via git show, since rules always live on main)
+    let rules = load_rules_from_branch(repo_path, "main")?;
 
     if rules.apps.is_empty() {
         println!("No apps configured for sync.");
@@ -44,6 +52,8 @@ pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Resu
         println!("(Dry run - no changes will be applied)");
     }
 
+    println!("Pulling from branch '{}'...", source_branch);
+
     let mut pulled_files = 0;
     let mut warnings = Vec::new();
 
@@ -65,48 +75,29 @@ pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Resu
             continue;
         }
 
-        // In pull-all mode, skip apps that have no files present locally on this
-        // machine — the app probably isn't installed here.
+        // In pull-all mode, skip apps that have no files present locally
         if pull_all && !fileset.iter().any(|p| p.exists()) {
             println!("  Skipping '{}': no local files found on this machine", app);
             continue;
         }
 
+        // Read app files from the source branch
+        let remote_files = read_app_files(repo_path, app)?;
+
         for local_path in fileset {
-            // Get filename
             let filename = local_path
                 .file_name()
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown");
 
-            // Collect all machines' versions of this file
-            let machines_dir = repo_path
-                .join("apps")
-                .join(app)
-                .join("machines");
-
-            if !machines_dir.exists() {
-                log::debug!("No machines directory for app '{}'", app);
-                warnings.push(format!("No machine configs for app '{}'", app));
-                continue;
-            }
-
-            let all_versions =
-                collect_machine_versions(repo_path, &machines_dir, filename, None)?;
-
-            if all_versions.is_empty() {
-                log::debug!("No versions found for {}", filename);
-                warnings.push(format!("No remote versions for: {}", filename));
-                continue;
-            }
-
-            // Intelligent merge from all machine versions
-            let merged_content = intelligent_merge(
-                &all_versions,
-                &config.machine_id,
-                filename,
-                app_config,
-            )?;
+            // Look up this file in the remote branch's app directory
+            let remote_content = match remote_files.get(filename) {
+                Some(content) => content.clone(),
+                None => {
+                    log::debug!("No remote version for {}", filename);
+                    continue;
+                }
+            };
 
             // If file exists locally, merge sections if needed
             let final_content = if local_path.exists() {
@@ -116,7 +107,7 @@ pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Resu
                 let comment = detect_comment_syntax(filename);
                 let merged_with_local = merge_synced_content(
                     &local_content,
-                    &merged_content,
+                    &remote_content,
                     comment,
                 )?;
 
@@ -129,7 +120,7 @@ pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Resu
                     println!("    (dry-run: would apply)");
                     pulled_files += 1;
                     None
-                } else if !yolo {
+                } else {
                     // Show diff and ask for confirmation
                     println!("\n  Changes in {} ({}):", filename, local_path.display());
                     show_simple_diff(&local_content, &merged_with_local);
@@ -139,8 +130,6 @@ pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Resu
                     } else {
                         None
                     }
-                } else {
-                    Some(merged_with_local)
                 }
             } else {
                 // File doesn't exist locally - create it
@@ -148,15 +137,13 @@ pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Resu
                     println!("  {} ({}) - would be created from remote", filename, local_path.display());
                     pulled_files += 1;
                     None
-                } else if !yolo {
+                } else {
                     let msg = format!("Create {} from remote?", filename);
                     if confirm_operation(&msg, true)? {
-                        Some(merged_content)
+                        Some(remote_content)
                     } else {
                         None
                     }
-                } else {
-                    Some(merged_content)
                 }
             };
 
@@ -202,18 +189,35 @@ pub fn pull_command(app_name: Option<String>, dry_run: bool, yolo: bool) -> Resu
     Ok(())
 }
 
+/// Load sync-rules.toml from a specific branch via git show.
+fn load_rules_from_branch(
+    repo_path: &std::path::Path,
+    branch: &str,
+) -> Result<SyncRules> {
+    let spec = format!("{}:.drifters/sync-rules.toml", branch);
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["show", &spec])
+        .output()?;
+
+    if !output.status.success() {
+        // Fallback: try reading from the current branch
+        return SyncRules::load(&repo_path.to_path_buf());
+    }
+
+    let content = String::from_utf8_lossy(&output.stdout);
+    let rules: SyncRules = toml::from_str(&content)?;
+    Ok(rules)
+}
+
 /// Show a simple diff between two strings.
-///
-/// Displays up to `MAX_DISPLAY` changed lines.  If the diff is larger, a
-/// summary line reports how many additional changes were omitted so the user
-/// knows the preview is incomplete.
 fn show_simple_diff(old: &str, new: &str) {
     use similar::TextDiff;
     const MAX_DISPLAY: usize = 40;
 
     let diff = TextDiff::from_lines(old, new);
 
-    // Collect only the changed lines so we know the total upfront.
     let changed_lines: Vec<_> = diff
         .iter_all_changes()
         .filter(|c| c.tag() != similar::ChangeTag::Equal)

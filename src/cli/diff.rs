@@ -1,27 +1,27 @@
 use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::Result;
-use crate::git::{collect_machine_versions, EphemeralRepoGuard};
-use crate::merge::intelligent_merge;
-use crate::parser::sections::{detect_comment_syntax, merge_synced_content};
+use crate::git::{read_app_files, EphemeralRepoGuard};
 use std::fs;
 
-pub fn show_diff(app_name: Option<String>) -> Result<()> {
+pub fn show_diff(app_name: Option<String>, against: Option<String>) -> Result<()> {
     log::info!("Showing diff");
 
     // Load local config
     let config = LocalConfig::load()?;
 
-    // Set up ephemeral repo
+    // Determine comparison branch
+    let compare_branch = against.unwrap_or_else(|| "main".to_string());
+
+    // Set up ephemeral repo on the comparison branch
     println!("Fetching latest from repository...");
-    let repo_guard = EphemeralRepoGuard::new(&config)?;
+    let repo_guard = EphemeralRepoGuard::new_on_branch(&config, &compare_branch)?;
     let repo_path = repo_guard.path();
 
-    // Guard: detect stale machine IDs (caused by rename-machine / remove-machine
-    // run from another machine while this machine was offline).
+    // Guard: detect stale machine IDs
     crate::cli::common::verify_machine_registration(&config, repo_path)?;
 
-    // Load sync rules
-    let rules = SyncRules::load(repo_path)?;
+    // Load sync rules from main
+    let rules = load_rules_from_main(repo_path)?;
 
     if rules.apps.is_empty() {
         println!("No apps configured for sync.");
@@ -38,6 +38,8 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
     } else {
         rules.apps.keys().cloned().collect()
     };
+
+    println!("Comparing local files against branch '{}'", compare_branch);
 
     let mut total_changes = 0;
 
@@ -60,36 +62,19 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
             continue;
         }
 
+        // Read files from the comparison branch
+        let remote_files = read_app_files(repo_path, app)?;
+
         for local_path in fileset {
             let filename = local_path
                 .file_name()
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown");
 
-            // Collect all machines' versions
-            let machines_dir = repo_path
-                .join("apps")
-                .join(app)
-                .join("machines");
-
-            if !machines_dir.exists() {
-                continue;
-            }
-
-            let all_versions =
-                collect_machine_versions(repo_path, &machines_dir, filename, None)?;
-
-            if all_versions.is_empty() {
-                continue;
-            }
-
-            // Intelligent merge from all machine versions
-            let merged_content = intelligent_merge(
-                &all_versions,
-                &config.machine_id,
-                filename,
-                app_config,
-            )?;
+            let remote_content = match remote_files.get(filename) {
+                Some(content) => content.clone(),
+                None => continue,
+            };
 
             // Compare with local
             let local_content = if local_path.exists() {
@@ -98,19 +83,11 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
                 String::new()
             };
 
-            // Apply section merging if needed
-            let final_content = if !local_content.is_empty() {
-                let comment = detect_comment_syntax(filename);
-                merge_synced_content(&local_content, &merged_content, comment)?
-            } else {
-                merged_content
-            };
-
             // Show diff if different
-            if local_content != final_content {
+            if local_content != remote_content {
                 println!("\n{} ({})", filename, local_path.display());
                 println!("{}", "-".repeat(60));
-                show_file_diff(&local_content, &final_content);
+                show_file_diff(&local_content, &remote_content);
                 total_changes += 1;
             }
         }
@@ -118,13 +95,29 @@ pub fn show_diff(app_name: Option<String>) -> Result<()> {
 
     println!("\n{}", "=".repeat(60));
     if total_changes == 0 {
-        println!("All configs are up to date");
+        println!("All configs are up to date with '{}'", compare_branch);
     } else {
-        println!("{} file(s) would change", total_changes);
-        println!("\nRun 'drifters pull-app' to apply these changes");
+        println!("{} file(s) differ from '{}'", total_changes, compare_branch);
+        println!("\nRun 'drifters pull-app' to apply changes from main");
     }
 
     Ok(())
+}
+
+fn load_rules_from_main(repo_path: &std::path::Path) -> Result<SyncRules> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["show", "main:.drifters/sync-rules.toml"])
+        .output()?;
+
+    if !output.status.success() {
+        return SyncRules::load(&repo_path.to_path_buf());
+    }
+
+    let content = String::from_utf8_lossy(&output.stdout);
+    let rules: SyncRules = toml::from_str(&content)?;
+    Ok(rules)
 }
 
 fn show_file_diff(old: &str, new: &str) {
@@ -150,7 +143,6 @@ fn show_file_diff(old: &str, new: &str) {
                 shown_lines += 1;
             }
             similar::ChangeTag::Equal => {
-                // Only show context lines (3 before and after)
                 if shown_lines > 0 && shown_lines < MAX_LINES - 3 {
                     print!("   {}", change);
                 }

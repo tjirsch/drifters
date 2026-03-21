@@ -1,19 +1,15 @@
 use crate::config::{LocalConfig, MachineRegistry, SyncRules};
 use crate::error::{DriftersError, Result};
-use crate::git::{commit_and_push, confirm_operation, EphemeralRepoGuard};
+use crate::git::{
+    checkout_branch, commit_and_push, confirm_operation, EphemeralRepoGuard,
+};
 
 /// Remove an app's configs.
 ///
-/// Behaviour depends on the flags:
-///
-/// * No flags  — removes this machine's uploaded configs for the app from the
-///               repo. The app stays in sync-rules for all other machines.
-/// * `--machine <id>` — same as above but for the named machine.
-/// * `--all`   — removes the app from every machine: deletes `apps/<app>/`
-///               entirely and removes the app from sync-rules.toml.
-///               Requires confirmation; default NO.
+/// * No flags  — removes this machine's uploaded configs for the app from its branch.
+/// * `--machine <id>` — same but for the named machine's branch.
+/// * `--all`   — removes the app from every branch and from sync-rules.toml on main.
 pub fn remove_app(app_name: String, machine: Option<String>, all: bool) -> Result<()> {
-    // --machine and --all are mutually exclusive
     if machine.is_some() && all {
         return Err(DriftersError::Config(
             "Cannot use --machine and --all together. \
@@ -33,18 +29,17 @@ pub fn remove_app(app_name: String, machine: Option<String>, all: bool) -> Resul
     // Guard: detect stale machine IDs
     crate::cli::common::verify_machine_registration(&config, repo_path)?;
 
-    let mut rules = SyncRules::load(repo_path)?;
+    let rules = SyncRules::load(repo_path)?;
 
     if !rules.apps.contains_key(&app_name) {
         return Err(DriftersError::AppNotFound(app_name));
     }
 
     if all {
-        remove_from_all(&app_name, &mut rules, repo_path)
+        remove_from_all(&app_name, repo_path, &config)
     } else {
         let target = match machine {
             Some(ref id) => {
-                // Validate the named machine exists in the registry
                 let registry = MachineRegistry::load(repo_path)?;
                 if !registry.machines.contains_key(id) {
                     let known: Vec<_> = registry.machines.keys().cloned().collect();
@@ -63,43 +58,42 @@ pub fn remove_app(app_name: String, machine: Option<String>, all: bool) -> Resul
             }
             None => config.machine_id.clone(),
         };
-        remove_from_machine(&app_name, &target, &config.machine_id, &mut rules, repo_path)
+        remove_from_machine(&app_name, &target, &config.machine_id, repo_path)
     }
 }
 
-/// Remove a single machine's uploaded configs for `app_name`.
+/// Remove a single machine's uploaded configs for `app_name` from its branch.
 fn remove_from_machine(
     app_name: &str,
     target_machine: &str,
     local_machine: &str,
-    rules: &mut SyncRules,
     repo_path: &std::path::Path,
 ) -> Result<()> {
     let repo_path_buf = repo_path.to_path_buf();
-    let machine_dir = repo_path
-        .join("apps")
-        .join(app_name)
-        .join("machines")
-        .join(target_machine);
+    let machine_branch = format!("machines/{}", target_machine);
 
-    if machine_dir.exists() {
-        std::fs::remove_dir_all(&machine_dir)?;
+    // Switch to the machine's branch
+    if crate::git::checkout_or_create_branch(&repo_path_buf, &machine_branch, "main").is_err() {
         println!(
-            "  Deleted uploaded configs for '{}' on machine '{}'",
-            app_name, target_machine
+            "  No branch found for machine '{}' (nothing to delete)",
+            target_machine
+        );
+        return Ok(());
+    }
+
+    let app_dir = repo_path.join("apps").join(app_name);
+    if app_dir.exists() {
+        std::fs::remove_dir_all(&app_dir)?;
+        println!(
+            "  Deleted uploaded configs for '{}' on branch '{}'",
+            app_name, machine_branch
         );
     } else {
         println!(
-            "  No uploaded configs found for '{}' on machine '{}' (nothing to delete)",
-            app_name, target_machine
+            "  No uploaded configs found for '{}' on branch '{}' (nothing to delete)",
+            app_name, machine_branch
         );
     }
-
-    // Remove any machine-specific overrides from sync-rules for this machine
-    if let Some(app_config) = rules.apps.get_mut(app_name) {
-        app_config.machines.remove(target_machine);
-    }
-    rules.save(&repo_path_buf)?;
 
     let is_self = target_machine == local_machine;
     let commit_msg = if is_self {
@@ -119,25 +113,21 @@ fn remove_from_machine(
     println!(
         "  The app remains configured in sync-rules for all other machines."
     );
-    println!(
-        "  Run 'drifters remove-app {} --all' to remove it from every machine.",
-        app_name
-    );
     Ok(())
 }
 
 /// Remove `app_name` from every machine and from sync-rules entirely.
 fn remove_from_all(
     app_name: &str,
-    rules: &mut SyncRules,
     repo_path: &std::path::Path,
+    _config: &LocalConfig,
 ) -> Result<()> {
     let repo_path_buf = repo_path.to_path_buf();
     eprintln!(
         "\n⚠️  This will remove '{}' from ALL machines.",
         app_name
     );
-    eprintln!("   • Deletes apps/{}/  (all uploaded configs in the repo)", app_name);
+    eprintln!("   • Deletes apps/{}/  from all machine branches and main", app_name);
     eprintln!("   • Removes the app from sync-rules.toml");
     eprintln!("   Note: local config files on each machine are NOT deleted.");
 
@@ -146,14 +136,36 @@ fn remove_from_all(
         return Ok(());
     }
 
-    // Delete apps/<app>/ entirely
+    // Get all machine branches
+    let registry = MachineRegistry::load(&repo_path_buf)?;
+
+    // Remove from each machine branch
+    for machine_id in registry.machines.keys() {
+        let machine_branch = format!("machines/{}", machine_id);
+        if checkout_branch(&repo_path_buf, &machine_branch).is_ok() {
+            let app_dir = repo_path.join("apps").join(app_name);
+            if app_dir.exists() {
+                std::fs::remove_dir_all(&app_dir)?;
+                commit_and_push(
+                    &repo_path_buf,
+                    &format!("remove {} app from {}", app_name, machine_id),
+                )?;
+                println!("  ✓ Removed from branch '{}'", machine_branch);
+            }
+        }
+    }
+
+    // Remove from main
+    checkout_branch(&repo_path_buf, "main")?;
+
+    // Delete apps/<app>/ from main if it exists
     let app_dir = repo_path.join("apps").join(app_name);
     if app_dir.exists() {
         std::fs::remove_dir_all(&app_dir)?;
-        log::debug!("Deleted {:?}", app_dir);
     }
 
     // Remove from sync-rules
+    let mut rules = SyncRules::load(&repo_path_buf)?;
     rules.apps.remove(app_name);
     rules.save(&repo_path_buf)?;
 

@@ -4,6 +4,47 @@ All notable changes to Drifters are documented here.
 
 ---
 
+## [0.7.0] — 2026-03-21
+
+### Breaking Changes
+
+- **Branch-per-machine architecture**: Each machine now gets its own git branch (`machines/<machine_id>`). `main` is the merged/common state. Existing repos must run `drifters migrate` to convert.
+- **Removed `--yolo` flag**: All operations now require explicit confirmation. The shell hook runs `pull-app` without the flag.
+- **Removed custom merge logic**: `src/merge/intelligent.rs` replaced by git's native `merge` + `mergetool`.
+
+### New Commands
+
+- `merge-app` — now merges a machine branch into main (was: re-apply merge rules). Uses git's native merge. Supports `--from <machine>` and `--dry-run`.
+- `migrate` — converts existing repos from the old `machines/` directory layout to branch-per-machine.
+
+### Changed
+
+- `push-app` — now pushes to the machine's branch only (was: push to main). Files stored flat at `apps/<app>/<filename>`.
+- `pull-app` — now pulls from `main` by default. Added `--from <machine>` flag to pull from a specific machine's branch.
+- `diff-app` — added `--against <branch>` flag to compare against a specific branch.
+- `status` — now shows branch info, available machine branches, and per-file status on branches.
+- `remove-machine` — now also deletes the machine's git branch.
+- `rename-machine` — now also renames the machine's git branch.
+- `remove-app` — updated for branch-based layout.
+- `init` — now creates a machine branch (`machines/<machine_id>`) on initialization.
+
+### Added
+
+- `singular` field on `MachineOverride` — machines marked `singular: true` cannot be merged into main.
+- `branch` field on `MachineInfo` — tracks the branch name for each machine.
+- `MergeConflict` error variant for git merge conflicts.
+- `EphemeralRepoGuard::new_on_branch()` for branch-aware ephemeral repo setup.
+
+### Removed
+
+- `--yolo` global flag
+- `src/merge/intelligent.rs` and `src/merge/mod.rs` (custom merge logic)
+- `MachineVersion` and `collect_machine_versions` from repo_layout
+- `get_file_commit_time` from git operations
+- `--machine` and `--os` flags from `merge-app` (replaced by `--from`)
+
+---
+
 ## [0.6.9] — 2026-03-20
 
 ### Changed

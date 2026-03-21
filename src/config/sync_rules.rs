@@ -54,6 +54,10 @@ pub struct MachineOverride {
 
     #[serde(default)]
     pub exclude: Vec<String>,
+
+    /// If true, this machine's branch is never merged into main.
+    #[serde(default)]
+    pub singular: bool,
 }
 
 impl SyncRules {

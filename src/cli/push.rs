@@ -4,23 +4,24 @@ use crate::git::{check_file_safety, commit_and_push, confirm_operation, Ephemera
 use crate::parser::sections::{detect_comment_syntax, extract_syncable_content};
 use std::fs;
 
-pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
-    log::info!("Pushing configs (yolo: {})", yolo);
+pub fn push_command(app_name: Option<String>) -> Result<()> {
+    log::info!("Pushing configs to machine branch");
 
     // Load local config
     let config = LocalConfig::load()?;
+    let machine_branch = format!("machines/{}", config.machine_id);
 
-    // Set up ephemeral repo (clones/pulls automatically, cleans up on drop)
+    // Set up ephemeral repo on this machine's branch
     println!("Setting up repository...");
-    let repo_guard = EphemeralRepoGuard::new(&config)?;
+    let repo_guard = EphemeralRepoGuard::new_on_branch(&config, &machine_branch)?;
     let repo_path = repo_guard.path();
 
-    // Guard: detect stale machine IDs (caused by rename-machine / remove-machine
-    // run from another machine while this machine was offline).
+    // Guard: detect stale machine IDs
     crate::cli::common::verify_machine_registration(&config, repo_path)?;
 
-    // Load sync rules
-    let rules = SyncRules::load(repo_path)?;
+    // Load sync rules from main (checkout main temporarily to read rules, then switch back)
+    // sync-rules.toml lives on main, so we read it via git show
+    let rules = load_rules_from_main(repo_path)?;
 
     if rules.apps.is_empty() {
         println!("No apps configured for sync.");
@@ -73,28 +74,24 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 continue;
             }
 
-            // Destination in repo: apps/[app]/machines/[machine-id]/[filename]
+            // Destination in repo: apps/[app]/[filename] (flat, on machine branch)
             let dest_dir = repo_path
                 .join("apps")
-                .join(app)
-                .join("machines")
-                .join(&config.machine_id);
+                .join(app);
 
             fs::create_dir_all(&dest_dir)?;
 
             let dest_path = dest_dir.join(filename);
 
-            // Safety check (unless --yolo)
-            if !yolo {
-                if !check_file_safety(&file_path, &dest_path)? {
-                    let msg = format!(
-                        "File {:?} appears risky to push. Continue?",
-                        file_path
-                    );
-                    if !confirm_operation(&msg, false)? {
-                        log::info!("Skipped {}", filename);
-                        continue;
-                    }
+            // Safety check
+            if !check_file_safety(&file_path, &dest_path)? {
+                let msg = format!(
+                    "File {:?} appears risky to push. Continue?",
+                    file_path
+                );
+                if !confirm_operation(&msg, false)? {
+                    log::info!("Skipped {}", filename);
+                    continue;
                 }
             }
 
@@ -115,7 +112,7 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
                 }
             };
 
-            // Write to machines/[machine-id]/ only
+            // Write to apps/[app]/[filename] on machine branch
             fs::write(&dest_path, &content_to_sync)?;
             log::debug!("Wrote content to {:?}", dest_path);
 
@@ -138,11 +135,9 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
     }
 
     // Confirm push
-    if !yolo {
-        println!("\nPushed {} file(s) for {} app(s)", pushed_files, apps_to_push.len());
-        if !confirm_operation("Commit and push these changes?", true)? {
-            return Err(DriftersError::UserCancelled);
-        }
+    println!("\nPushed {} file(s) for {} app(s) to branch '{}'", pushed_files, apps_to_push.len(), machine_branch);
+    if !confirm_operation("Commit and push these changes?", true)? {
+        return Err(DriftersError::UserCancelled);
     }
 
     // Commit and push
@@ -155,7 +150,27 @@ pub fn push_command(app_name: Option<String>, yolo: bool) -> Result<()> {
 
     commit_and_push(repo_path, &message)?;
 
-    println!("✓ Successfully pushed {} file(s)", pushed_files);
+    println!("✓ Successfully pushed {} file(s) to branch '{}'", pushed_files, machine_branch);
 
     Ok(())
+}
+
+/// Load sync-rules.toml from the main branch without switching branches.
+/// Uses `git show main:.drifters/sync-rules.toml`.
+fn load_rules_from_main(repo_path: &std::path::Path) -> Result<SyncRules> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["show", "main:.drifters/sync-rules.toml"])
+        .output()?;
+
+    if !output.status.success() {
+        // Fallback: try reading from the current branch (for new repos where main
+        // might have the file from init)
+        return SyncRules::load(&repo_path.to_path_buf());
+    }
+
+    let content = String::from_utf8_lossy(&output.stdout);
+    let rules: SyncRules = toml::from_str(&content)?;
+    Ok(rules)
 }

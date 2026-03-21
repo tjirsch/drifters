@@ -13,6 +13,8 @@ pub struct MachineRegistry {
 pub struct MachineInfo {
     pub os: String,
     pub last_sync: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
 }
 
 impl MachineRegistry {
@@ -45,11 +47,13 @@ impl MachineRegistry {
     }
 
     pub fn register_machine(&mut self, machine_id: String, os: String) {
+        let branch = Some(format!("machines/{}", machine_id));
         self.machines.insert(
             machine_id,
             MachineInfo {
                 os,
                 last_sync: Some(Utc::now()),
+                branch,
             },
         );
     }

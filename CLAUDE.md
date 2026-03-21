@@ -19,31 +19,41 @@ Releases use `cargo-dist` (config in `dist-workspace.toml`) and `cargo-release` 
 
 Drifters is a Rust CLI that syncs config files across machines using Git as the transport layer. It shells out to the system `git` binary (no git2/libgit2 dependency).
 
+### Branch-per-machine model
+
+Each machine gets its own git branch (`machines/<machine_id>`). `main` is the merged/common state. The workflow is:
+
+1. `push-app` — pushes local configs to the machine's branch only
+2. `merge-app` — merges the machine branch into main (uses git's native merge + mergetool for conflicts)
+3. `pull-app` — pulls from main (default) or `--from <machine>` to pull from a specific branch
+
+Machines marked `singular: true` in sync-rules.toml can push/pull but `merge-app` refuses to merge them into main.
+
 ### Core Modules
 
-- **`src/main.rs`** — CLI definition using clap derive. All commands defined in `Commands` enum, dispatched in `run()`. Global flags: `--verbose`, `--yolo`.
-- **`src/cli/`** — One file per command (e.g., `push.rs`, `pull.rs`, `add.rs`). `common.rs` has shared helpers. Entry points are public functions like `push_command()`, `pull_command()`.
+- **`src/main.rs`** — CLI definition using clap derive. All commands defined in `Commands` enum, dispatched in `run()`. Global flag: `--verbose`.
+- **`src/cli/`** — One file per command (e.g., `push.rs`, `pull.rs`, `add.rs`). `common.rs` has shared helpers. `migrate.rs` converts old repos to the branch-per-machine layout.
 - **`src/config/`** — Configuration types:
   - `local.rs` — `LocalConfig`: per-machine config at `~/.config/drifters/drifters.toml` (machine_id, repo_url, update settings, editor)
-  - `sync_rules.rs` — `SyncRules`/`AppConfig`/`MachineOverride`: the shared repo config at `.drifters/sync-rules.toml`
+  - `sync_rules.rs` — `SyncRules`/`AppConfig`/`MachineOverride`: the shared repo config at `.drifters/sync-rules.toml`. `MachineOverride` has a `singular: bool` field.
   - `fileset.rs` — Glob pattern resolution for include/exclude rules
-  - `machines.rs` — `MachineRegistry` for machine ID tracking
+  - `machines.rs` — `MachineRegistry` for machine ID tracking. `MachineInfo` includes `branch: Option<String>`.
 - **`src/git/`** — Git operations:
-  - `operations.rs` — Low-level git commands via `git_run()` helper (clone, pull, commit, push)
-  - `ephemeral.rs` — `EphemeralRepoGuard` (RAII): clones repo to `~/.config/drifters/tmp-repo`, acquires a lock file, cleans up on drop. This is the central pattern — most commands create a guard, operate on the repo, then let it drop.
-  - `repo_layout.rs` — Reads `apps/<app>/machines/<machine_id>/` directory structure, collects `MachineVersion` (content + commit timestamp)
+  - `operations.rs` — Low-level git commands via `git_run()` helper (clone, pull, commit, push, branch operations, merge, mergetool)
+  - `ephemeral.rs` — `EphemeralRepoGuard` (RAII): clones repo to `~/.config/drifters/tmp-repo`, acquires a lock file, cleans up on drop. Supports `new()` (stays on main) and `new_on_branch()` (checks out a specific branch).
+  - `repo_layout.rs` — `read_app_files()` reads flat `apps/<app>/` directory on current branch
   - `safety.rs` — File safety checks, user confirmation prompts
-- **`src/parser/sections.rs`** — Section tag parsing (`drifters::exclude::start/stop`). Extracts syncable content, merges synced content back preserving local exclude blocks. Auto-detects comment syntax from file extension.
-- **`src/merge/intelligent.rs`** — Merge strategy: last-write-wins by git commit timestamp, with tiebreakers (prefer current machine, then lexicographic).
-- **`src/error.rs`** — `DriftersError` enum with `thiserror`, custom `Result<T>` type.
-- **`src/sync/`** — Placeholder module (sync logic lives in `cli/` modules).
+- **`src/parser/sections.rs`** — Section tag parsing (`drifters::exclude::start/stop`). Extracts syncable content, merges synced content back preserving local exclude blocks.
+- **`src/error.rs`** — `DriftersError` enum with `thiserror`, custom `Result<T>` type. Includes `MergeConflict` variant.
+- **`src/sync/`** — Placeholder module.
 
 ### Key Patterns
 
 - **Ephemeral repo**: Every command clones/pulls the repo fresh, operates, commits+pushes, then deletes. `EphemeralRepoGuard` manages this lifecycle with a lock file to prevent concurrent corruption.
+- **Branch-per-machine**: Each machine's configs live on `machines/<machine_id>` branch. Files stored flat at `apps/<app>/<filename>`. Rules live at `.drifters/sync-rules.toml` on main.
 - **Three-level rule hierarchy**: App defaults → OS-specific rules → Machine-specific overrides. Resolved in `fileset.rs`.
-- **Section tags**: Files can contain `drifters::exclude::start/stop` blocks (comment-style varies by file type). Content inside these blocks stays local and is never synced.
-- **Repo layout**: Remote repo stores configs at `apps/<app>/machines/<machine_id>/<filename>`. Rules live at `.drifters/sync-rules.toml`.
+- **Section tags**: Files can contain `drifters::exclude::start/stop` blocks. Content inside these blocks stays local and is never synced.
+- **Git-native merging**: `merge-app` uses `git merge` + `git mergetool` for conflict resolution instead of custom merge logic.
 
 ### Error Handling
 

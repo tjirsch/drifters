@@ -4,6 +4,10 @@ pub mod repo_layout;
 pub mod safety;
 
 pub use ephemeral::EphemeralRepoGuard;
-pub use operations::{clone_repo, commit_and_push, get_file_commit_time, init_repo, pull_latest, set_remote_origin};
-pub use repo_layout::{collect_machine_versions, MachineVersion};
+pub use operations::{
+    checkout_branch, checkout_or_create_branch, clone_repo, commit_and_push, commit_merge,
+    create_branch, init_repo, list_branches, merge_branch, merge_dry_run, pull_latest,
+    run_mergetool, set_remote_origin,
+};
+pub use repo_layout::read_app_files;
 pub use safety::{check_file_safety, confirm_operation};

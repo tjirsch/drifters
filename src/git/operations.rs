@@ -145,28 +145,154 @@ fn push_to_remote(repo_path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-/// Return the Unix timestamp (seconds since epoch) of the most recent git commit
-/// that touched `relative_path` inside `repo_path`.
-///
-/// Returns `None` if the file has no git history, git is unavailable, or the
-/// output cannot be parsed (e.g. legacy repos that predate this feature).
-pub fn get_file_commit_time(repo_path: &std::path::Path, relative_path: &str) -> Option<u64> {
-    let output = Command::new("git")
-        .args([
-            "-C",
-            repo_path.to_str()?,
-            "log",
-            "-1",
-            "--format=%ct",
-            "--",
-            relative_path,
-        ])
-        .output()
-        .ok()?;
+// ─── Branch operations ──────────────────────────────────────────────────────
 
-    std::str::from_utf8(&output.stdout)
-        .ok()?
-        .trim()
-        .parse::<u64>()
-        .ok()
+/// Create and checkout a new branch from the current HEAD.
+pub fn create_branch(repo_path: &PathBuf, branch_name: &str) -> Result<()> {
+    git_run(repo_path, &["checkout", "-b", branch_name])?;
+    Ok(())
+}
+
+/// Checkout an existing branch.
+pub fn checkout_branch(repo_path: &PathBuf, branch_name: &str) -> Result<()> {
+    git_run(repo_path, &["checkout", branch_name])?;
+    Ok(())
+}
+
+/// Fetch a specific branch from origin.
+fn fetch_branch(repo_path: &PathBuf, branch_name: &str) -> Result<()> {
+    git_run(repo_path, &["fetch", "origin", branch_name])?;
+    Ok(())
+}
+
+/// Merge a source branch into the current branch.
+/// Returns Ok(()) on clean merge, Err(MergeConflict) if conflicts arise.
+pub fn merge_branch(repo_path: &PathBuf, source_branch: &str) -> Result<()> {
+    let name = git_run(repo_path, &["config", "user.name"])
+        .unwrap_or_else(|_| "Drifters User".to_string());
+    let email = git_run(repo_path, &["config", "user.email"])
+        .unwrap_or_else(|_| "drifters@localhost".to_string());
+
+    let result = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .arg("-c")
+        .arg(format!("user.name={}", name))
+        .arg("-c")
+        .arg(format!("user.email={}", email))
+        .args(["merge", source_branch])
+        .output()?;
+
+    if !result.status.success() {
+        let stderr = String::from_utf8_lossy(&result.stderr).trim().to_string();
+        if stderr.contains("CONFLICT") || stderr.contains("Automatic merge failed") {
+            return Err(DriftersError::MergeConflict(stderr));
+        }
+        return Err(DriftersError::Git(stderr));
+    }
+    Ok(())
+}
+
+/// Run git mergetool to resolve conflicts interactively.
+pub fn run_mergetool(repo_path: &PathBuf) -> Result<()> {
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .arg("mergetool")
+        .status()?;
+
+    if !status.success() {
+        return Err(DriftersError::Git(
+            "git mergetool failed or was cancelled".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// List all branches (local and remote).
+pub fn list_branches(repo_path: &PathBuf) -> Result<Vec<String>> {
+    let output = git_run(repo_path, &["branch", "-a", "--format=%(refname:short)"])?;
+    Ok(output
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect())
+}
+
+/// Checkout a branch, creating it from a base branch if it doesn't exist locally.
+/// If the branch exists on the remote but not locally, creates a tracking branch.
+pub fn checkout_or_create_branch(
+    repo_path: &PathBuf,
+    branch_name: &str,
+    base_branch: &str,
+) -> Result<()> {
+    // Try checkout first (works if branch exists locally)
+    if checkout_branch(repo_path, branch_name).is_ok() {
+        return Ok(());
+    }
+
+    // Try to fetch and track from remote
+    if fetch_branch(repo_path, branch_name).is_ok() {
+        let remote_ref = format!("origin/{}", branch_name);
+        if git_run(repo_path, &["checkout", "-b", branch_name, "--track", &remote_ref]).is_ok() {
+            return Ok(());
+        }
+    }
+
+    // Branch doesn't exist anywhere — create from base
+    checkout_branch(repo_path, base_branch)?;
+    create_branch(repo_path, branch_name)?;
+    Ok(())
+}
+
+/// Merge a branch without committing (for dry-run).
+/// Returns Ok(true) if clean, Ok(false) if conflicts, and aborts the merge.
+pub fn merge_dry_run(repo_path: &PathBuf, source_branch: &str) -> Result<(bool, String)> {
+    let name = git_run(repo_path, &["config", "user.name"])
+        .unwrap_or_else(|_| "Drifters User".to_string());
+    let email = git_run(repo_path, &["config", "user.email"])
+        .unwrap_or_else(|_| "drifters@localhost".to_string());
+
+    let result = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .arg("-c")
+        .arg(format!("user.name={}", name))
+        .arg("-c")
+        .arg(format!("user.email={}", email))
+        .args(["merge", "--no-commit", source_branch])
+        .output()?;
+
+    let stderr = String::from_utf8_lossy(&result.stderr).trim().to_string();
+
+    // Get diff of what would change
+    let diff = git_run(repo_path, &["diff", "--cached", "--stat"])
+        .unwrap_or_default();
+
+    // Abort the merge
+    let _ = git_run(repo_path, &["merge", "--abort"]);
+
+    if result.status.success() {
+        Ok((true, diff))
+    } else {
+        Ok((false, format!("{}\n{}", stderr, diff)))
+    }
+}
+
+/// Commit merge result (after mergetool resolution).
+pub fn commit_merge(repo_path: &PathBuf, message: &str) -> Result<()> {
+    let name = git_run(repo_path, &["config", "user.name"])
+        .unwrap_or_else(|_| "Drifters User".to_string());
+    let email = git_run(repo_path, &["config", "user.email"])
+        .unwrap_or_else(|_| "drifters@localhost".to_string());
+
+    git_run(
+        repo_path,
+        &[
+            "-c", &format!("user.name={}", name),
+            "-c", &format!("user.email={}", email),
+            "commit", "-m", message,
+        ],
+    )?;
+    Ok(())
 }

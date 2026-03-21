@@ -11,6 +11,7 @@ pub mod import;
 pub mod init;
 pub mod list;
 pub mod merge;
+pub mod migrate;
 pub mod open_readme;
 pub mod presets;
 pub mod pull;

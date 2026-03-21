@@ -8,7 +8,7 @@ pub fn generate_hook() -> Result<()> {
 
 drifters_auto_sync() {{
     # Run in background, suppress all output
-    (drifters pull-app --yolo >/dev/null 2>&1 &)
+    (drifters pull-app >/dev/null 2>&1 &)
 }}
 
 # Run on shell startup

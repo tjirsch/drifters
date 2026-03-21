@@ -1,15 +1,17 @@
 # Drifters
 
-> Intelligent configuration file synchronization across multiple machines
+> Configuration file synchronization across multiple machines using git branches
 
-Drifters helps you keep your application configurations synchronized across all your machines (macOS, Linux, Windows) using Git as the transport layer. Unlike simple dotfile managers, Drifters provides **intelligent merging**, per-machine exceptions, and section-level control.
+Drifters helps you keep your application configurations synchronized across all your machines (macOS, Linux, Windows) using Git as the transport layer. Each machine gets its own git branch, giving you full control over when and how configs are merged.
 
 ## Features
 
-- 🔄 **Intelligent Merging** - Consensus-based merging from multiple machines, not just last-write-wins
+- 🌿 **Branch-per-machine** - Each machine has its own git branch; merge to main explicitly
+- 🔀 **Git-native merging** - Uses `git merge` + `git mergetool` for real conflict resolution
 - 🎯 **Selective Sync** - Use glob patterns and section tags for fine-grained control
 - 🖥️ **Multi-OS Support** - OS-specific configurations with fallbacks
 - 🔒 **Per-Machine Overrides** - Exclude files or sections on specific machines
+- 🚫 **Singular Machines** - Machines that never merge to main (private configs)
 - 📦 **No Daemon** - Manual control over when configs sync (with optional auto-pull hook)
 - 🚀 **Fast & Safe** - Written in Rust with built-in safety checks
 - 📝 **Section Tags** - Exclude sensitive or machine-specific sections within files
@@ -58,20 +60,25 @@ drifters init git@github.com:username/my-configs.git
 # Add an app to sync (interactive)
 drifters add-app zed
 # Enter file patterns: ~/.config/zed/settings.json
-# Or use a preset from presets/
 
-# Push your current configs
+# Push configs to your machine's branch
 drifters push-app
+
+# Merge your branch into main (so other machines can pull)
+drifters merge-app
 ```
 
 ### Initialize on Additional Machines
 
 ```bash
-# Clone and pull configs
+# Clone and set up (creates a new machine branch)
 drifters init git@github.com:username/my-configs.git
 
-# Pull configs from other machines
+# Pull configs from main
 drifters pull-app
+
+# Push your configs to your machine's branch
+drifters push-app
 ```
 
 ## Core Concepts
@@ -120,17 +127,18 @@ include-macos = ["~/Library/Application Support/Zed/settings.json"]
 # Machine override
 [apps.zed.machines.laptop]
 exclude = ["**/keymap.json"]  # Different keyboard
+singular = true               # Never merge this machine's branch into main
 ```
 
-### Intelligent Merging
+### Branch-per-machine Workflow
 
-When you pull, Drifters:
-1. Collects config versions from ALL machines
-2. Finds consensus (majority wins)
-3. On ties, prefers current machine's version
-4. Merges while preserving your local `drifters::exclude` sections
+Each machine operates on its own git branch (`machines/<machine_id>`):
 
-No "last write wins" - true multi-machine intelligence.
+1. **push-app** — pushes local configs to your machine's branch
+2. **merge-app** — merges your branch into main (uses git's native merge; launches mergetool on conflicts)
+3. **pull-app** — pulls from main (or `--from <machine>` for a specific machine's branch)
+
+Machines marked `singular: true` in sync-rules.toml can push and pull but `merge-app` refuses to merge them into main — useful for private/experimental configs.
 
 ## Commands
 
@@ -144,11 +152,15 @@ No "last write wins" - true multi-machine intelligence.
 | `drifters remove-app <app> --all` | Remove an app from all machines entirely |
 | `drifters rename-app <old> <new>` | Rename an app everywhere in the repo |
 | **Sync** | |
-| `drifters push-app [app]` | Push local configs to repo |
-| `drifters pull-app [app]` | Pull and merge configs from all machines |
+| `drifters push-app [app]` | Push local configs to your machine's branch |
+| `drifters pull-app [app]` | Pull configs from main |
+| `drifters pull-app [app] --from <machine>` | Pull from a specific machine's branch |
 | `drifters pull-app [app] --dry-run` | Show what would change without applying |
-| `drifters merge-app [app]` | Re-merge configs using current rules |
-| `drifters diff-app [app]` | Show diff without applying changes |
+| `drifters merge-app [app]` | Merge your machine branch into main |
+| `drifters merge-app --from <machine>` | Merge another machine's branch into main |
+| `drifters merge-app --dry-run` | Preview merge without applying |
+| `drifters diff-app [app]` | Show diff against main |
+| `drifters diff-app [app] --against <branch>` | Show diff against a specific branch |
 | `drifters status` | Show per-file sync status |
 | `drifters exclude-app <app> <file>` | Exclude a file on this machine |
 | **Listing** | |
@@ -185,28 +197,27 @@ No "last write wins" - true multi-machine intelligence.
 | `drifters set-editor` | Show current preferred editor setting |
 | `drifters edit-rules` | Open `sync-rules.toml` in your editor and optionally save to the repository |
 | `drifters unlock` | Force-remove a stale lock file left behind after a crash or Ctrl-C |
+| `drifters migrate` | Migrate old repos from machines/ directory layout to branch-per-machine |
 
 ### The `merge-app` Command
 
-Useful when you've changed sync rules:
+Merges a machine branch into main:
 
 ```bash
-# Re-apply current rules to all configs
+# Merge your machine's branch into main
 drifters merge-app
 
-# Test merge for specific app
-drifters merge-app zed --dry-run
+# Preview merge without applying
+drifters merge-app --dry-run
 
-# Debug: merge from only one machine
-drifters merge-app --machine mac01 --dry-run
-
-# Test OS-specific rules
-drifters merge-app --os linux
+# Merge a specific machine's branch
+drifters merge-app --from mac01
 ```
+
+On conflicts, drifters launches `git mergetool` (respects your existing git mergetool config).
 
 ### Flags
 
-- `--yolo` - Skip all confirmations (use with caution)
 - `-v, --verbose` - Show detailed logging
 - `-V, --version` - Print version and exit
 
@@ -343,7 +354,7 @@ Add to your `.zshrc` or `.bashrc`:
 eval "$(drifters hook)"
 ```
 
-Runs `drifters pull-app --yolo` in background on shell startup. Changes applied silently.
+Runs `drifters pull-app` in background on shell startup. Changes applied silently.
 
 **Note:** Pushes are always manual for safety.
 
@@ -404,38 +415,43 @@ Submit your own app definitions via Pull Request! See [CONTRIBUTING.md](CONTRIBU
 
 ## Repository Structure
 
+Each machine has its own branch (`machines/<machine_id>`). On each branch:
+
 ```
-your-configs-repo/
+machines/mac01 branch:
 ├── .drifters/
-│   └── sync-rules.toml    # Central configuration (synced)
+│   ├── sync-rules.toml    # Central configuration (on main)
+│   └── machines.toml      # Machine registry (on main)
 └── apps/
     └── zed/
-        └── machines/
-            ├── mac01/
-            │   ├── settings.json
-            │   └── keymap.json
-            └── linux02/
-                └── settings.json
+        ├── settings.json
+        └── keymap.json
+
+machines/linux02 branch:
+└── apps/
+    └── zed/
+        └── settings.json
 ```
 
-**No `merged/` directory** - Drifters merges intelligently at pull time from all machine states.
+`main` contains the merged state after running `drifters merge-app`.
 
 ## Comparison with Alternatives
 
 | Feature | Drifters | chezmoi | yadm | Dotbot | Bare Git |
 |---------|----------|---------|------|--------|----------|
-| Intelligent multi-machine merge | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Branch-per-machine with git-native merge | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Section-level control | ✅ | ⚠️ (templates) | ❌ | ❌ | ❌ |
 | Glob patterns | ✅ | ✅ | ✅ | ⚠️ | ❌ |
 | OS-specific rules | ✅ | ✅ | ✅ | ⚠️ | ❌ |
 | Per-machine exceptions | ✅ | ⚠️ (templates) | ⚠️ (classes) | ❌ | ❌ |
 | Git-based | ✅ | ✅ | ✅ | ✅ | ✅ |
 | No templating needed | ✅ | ❌ | ✅ | ✅ | ✅ |
-| Consensus merging | ✅ | ❌ | ❌ | ❌ | ❌ |
+| No-sync (singular) machines | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 **Drifters is ideal if you:**
 - Work across multiple machines regularly
-- Want intelligent merging, not just last-write-wins
+- Want explicit control over when configs merge (not automatic)
+- Need per-machine branches with real git conflict resolution
 - Need to exclude specific sections without complex templating
 - Want fine-grained control with simple configuration
 
@@ -456,11 +472,11 @@ On every command:
 
 ### How Merging Works
 
-When you `pull`:
-1. Drifters collects versions from ALL machines in `apps/*/machines/*/`
-2. Runs consensus algorithm (majority wins)
-3. On ties, prefers current machine's version
-4. Applies merged content while preserving local exclude sections
+Drifters uses git's native merge:
+1. `push-app` pushes your configs to your machine's branch (`machines/<machine_id>`)
+2. `merge-app` merges your branch into `main` using `git merge`
+3. On conflicts, `git mergetool` is launched for interactive resolution
+4. `pull-app` reads from `main` and applies content while preserving local exclude sections
 
 ### Supported Comment Styles
 
@@ -497,7 +513,7 @@ The optional shell hook (`eval "$(drifters hook)"`) runs `drifters pull-app --yo
 A: No. All operations are manual unless you add the optional shell hook.
 
 **Q: What if two machines have conflicting changes?**
-A: Drifters uses consensus-based merging. If 2+ machines agree, that version wins. On ties, your current machine's version is preferred. You'll see a warning in logs.
+A: When you run `merge-app`, git's native merge handles it. If there are conflicts, `git mergetool` is launched for interactive resolution.
 
 **Q: Can I sync secrets?**
 A: No. Drifters repos are Git repos - never commit secrets. Use `drifters::exclude` sections for sensitive data, or use a proper secret manager.

@@ -215,6 +215,12 @@ enum Commands {
     },
     /// Open the local drifters config file in your editor
     EditConfig,
+    /// Open one of an app's config files in your editor
+    #[command(arg_required_else_help = true)]
+    EditAppFiles {
+        /// App name
+        app_name: String,
+    },
     /// Open sync-rules.toml in your editor and optionally save changes to the repository
     EditRules,
     /// Force-remove a stale lock file left behind after a crash or Ctrl-C
@@ -433,6 +439,9 @@ fn run() -> Result<()> {
         }
         Commands::EditConfig => {
             cli::edit_config::edit_config()
+        }
+        Commands::EditAppFiles { app_name } => {
+            cli::edit_app_files::edit_app_files(&app_name)
         }
         Commands::EditRules => {
             cli::edit_rules::edit_rules()

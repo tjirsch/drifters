@@ -46,6 +46,10 @@ A `singular: bool` flag on `MachineOverride` marks machines that should never me
 - **More branches**: Repository accumulates one branch per machine
 - **Extra step**: Users must explicitly run `merge-app` to share configs
 
+### Extended by
+
+- [ADR 05: Selective merge-app and no_merge flag](05-selective-merge-and-no-merge.md) — adds per-app selective merging and `no_merge` flag
+
 ### Removed
 
 - `--yolo` flag removed (no more automatic merge without confirmation)

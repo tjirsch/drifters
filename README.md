@@ -128,6 +128,10 @@ include-macos = ["~/Library/Application Support/Zed/settings.json"]
 [apps.zed.machines.laptop]
 exclude = ["**/keymap.json"]  # Different keyboard
 singular = true               # Never merge this machine's branch into main
+
+[apps.claude-code]
+include = ["~/.claude/*"]
+no_merge = true               # This app stays on machine branches, never merged to main
 ```
 
 ### Branch-per-machine Workflow
@@ -139,6 +143,8 @@ Each machine operates on its own git branch (`machines/<machine_id>`):
 3. **pull-app** — pulls from main (or `--from <machine>` for a specific machine's branch)
 
 Machines marked `singular: true` in sync-rules.toml can push and pull but `merge-app` refuses to merge them into main — useful for private/experimental configs.
+
+Apps marked `no_merge = true` in sync-rules.toml are automatically excluded from full-branch merges. When you specify an app name (`merge-app zed`), only that app's files are merged selectively.
 
 ## Commands
 
@@ -156,9 +162,11 @@ Machines marked `singular: true` in sync-rules.toml can push and pull but `merge
 | `drifters pull-app [app]` | Pull configs from main |
 | `drifters pull-app [app] --from <machine>` | Pull from a specific machine's branch |
 | `drifters pull-app [app] --dry-run` | Show what would change without applying |
-| `drifters merge-app [app]` | Merge your machine branch into main |
+| `drifters merge-app [app]` | Merge your machine branch into main (selective if app specified) |
 | `drifters merge-app --from <machine>` | Merge another machine's branch into main |
 | `drifters merge-app --dry-run` | Preview merge without applying |
+| **Config** | |
+| `drifters edit-config` | Open local drifters config file in your editor |
 | `drifters diff-app [app]` | Show diff against main |
 | `drifters diff-app [app] --against <branch>` | Show diff against a specific branch |
 | `drifters status` | Show per-file sync status |
@@ -203,8 +211,11 @@ Machines marked `singular: true` in sync-rules.toml can push and pull but `merge
 Merges a machine branch into main:
 
 ```bash
-# Merge your machine's branch into main
+# Merge all apps (full git merge)
 drifters merge-app
+
+# Merge only a specific app (selective — copies that app's files from your branch)
+drifters merge-app zed
 
 # Preview merge without applying
 drifters merge-app --dry-run
@@ -213,7 +224,9 @@ drifters merge-app --dry-run
 drifters merge-app --from mac01
 ```
 
-On conflicts, drifters launches `git mergetool` (respects your existing git mergetool config).
+On full merges, drifters uses `git merge` and launches `git mergetool` on conflicts. On selective merges (with app name), the app's files are copied from the machine branch wholesale.
+
+Apps with `no_merge = true` in sync-rules.toml are automatically excluded from full-branch merges. When no_merge apps exist, `merge-app` (without an app name) merges only the remaining apps selectively.
 
 ### Flags
 
@@ -504,7 +517,7 @@ Drifters uses your own private Git repository as storage. **Never commit secrets
 
 ### Shell Hook
 
-The optional shell hook (`eval "$(drifters hook)"`) runs `drifters pull-app --yolo` on every new shell session. This means remote config changes are applied automatically and without confirmation. Only enable it if you fully trust the machines pushing to your config repo.
+The optional shell hook (`eval "$(drifters hook)"`) runs `drifters pull-app` on every new shell session. This means remote config changes are applied automatically. Only enable it if you fully trust the machines pushing to your config repo.
 
 ## FAQ
 

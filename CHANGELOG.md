@@ -4,6 +4,19 @@ All notable changes to Drifters are documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`diff-app --tool`** — Open diffs in an external difftool instead of printing to terminal. Uses the user's configured `git difftool` (e.g. Zed, Sublime Merge, VS Code).
+
+### Fixed
+
+- **`pull-app --from` false "not registered" error** — When pulling from a specific machine's branch, the machine registration check read `.drifters/machines.toml` from that branch where it doesn't exist. Now skips the check when `--from` is set.
+- **Diff output truncation** — `diff-app` capped output at 100 changed lines and `pull-app` at 40. Both now show all lines.
+
+---
+
 ## [0.6.17] — 2026-03-21
 
 ### New Commands

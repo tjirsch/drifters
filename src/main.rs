@@ -95,6 +95,9 @@ enum Commands {
         /// Compare against a specific branch instead of main
         #[arg(long)]
         against: Option<String>,
+        /// Open diffs in external difftool (uses git difftool config)
+        #[arg(long)]
+        tool: bool,
     },
     /// Merge a machine branch into main (or another branch)
     MergeApp {
@@ -338,8 +341,8 @@ fn run() -> Result<()> {
         Commands::Status => {
             cli::status::show_status()
         }
-        Commands::DiffApp { app_name, against } => {
-            cli::diff::show_diff(app_name, against)
+        Commands::DiffApp { app_name, against, tool } => {
+            cli::diff::show_diff(app_name, against, tool)
         }
         Commands::MergeApp { app_name, from, dry_run } => {
             cli::merge::merge_command(app_name, from, dry_run)

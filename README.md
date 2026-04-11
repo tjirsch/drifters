@@ -170,6 +170,7 @@ Apps marked `no_merge = true` in sync-rules.toml are automatically excluded from
 | `drifters edit-app-files <app>` | Open one of an app's config files in your editor |
 | `drifters diff-app [app]` | Show diff against main |
 | `drifters diff-app [app] --against <branch>` | Show diff against a specific branch |
+| `drifters diff-app [app] --tool` | Open diffs in external difftool (uses `git difftool` config) |
 | `drifters status` | Show per-file sync status |
 | `drifters exclude-app <app> <file>` | Exclude a file on this machine |
 | **Listing** | |

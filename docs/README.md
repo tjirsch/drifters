@@ -44,6 +44,87 @@ Each machine has its own git branch (`machines/<machine_id>`):
 3. `pull-app` pulls from main (or `--from <machine>`)
 4. Local exclude sections are always preserved
 
+### Sync Scenarios
+
+#### Standard sync via main
+
+The normal workflow: push your changes, merge to main, other machines pull from main.
+
+```mermaid
+sequenceDiagram
+    participant A as Machine A<br/>(local files)
+    participant BA as machines/A<br/>(branch)
+    participant M as main<br/>(branch)
+    participant BB as machines/B<br/>(branch)
+    participant B as Machine B<br/>(local files)
+
+    Note over A: Edit config files locally
+    A->>BA: push-app
+    BA->>M: merge-app
+    Note over M: Changes now on main
+    M->>B: pull-app
+    Note over B: Files updated
+```
+
+#### Direct machine-to-machine pull
+
+Skip main and pull directly from another machine's branch. Useful for testing changes before merging.
+
+```mermaid
+sequenceDiagram
+    participant A as Machine A<br/>(local files)
+    participant BA as machines/A<br/>(branch)
+    participant B as Machine B<br/>(local files)
+
+    Note over A: Edit config files locally
+    A->>BA: push-app
+    BA->>B: pull-app --from A
+    Note over B: Files updated<br/>(main unchanged)
+```
+
+#### Common mistake: forgetting merge-app
+
+`push-app` only writes to your machine's branch — not to main. Without `merge-app`, other machines won't see your changes via `pull-app`.
+
+```mermaid
+sequenceDiagram
+    participant A as Machine A<br/>(local files)
+    participant BA as machines/A<br/>(branch)
+    participant M as main<br/>(branch)
+    participant B as Machine B<br/>(local files)
+
+    A->>BA: push-app
+    Note over BA: Changes on branch only
+    M-->>B: pull-app
+    Note over B: No changes!<br/>main is unchanged
+
+    Note over A: Fix: run merge-app
+    BA->>M: merge-app
+    M->>B: pull-app
+    Note over B: Now updated
+```
+
+#### Bidirectional sync between two machines
+
+Both machines push their changes, merge to main, then pull the other's updates.
+
+```mermaid
+sequenceDiagram
+    participant A as Machine A
+    participant BA as machines/A
+    participant M as main
+    participant BB as machines/B
+    participant B as Machine B
+
+    A->>BA: push-app
+    B->>BB: push-app
+    BA->>M: merge-app
+    BB->>M: merge-app
+    M->>A: pull-app
+    M->>B: pull-app
+    Note over A,B: Both machines in sync
+```
+
 ## Workflows
 
 ### Adding Apps
@@ -80,6 +161,13 @@ drifters push-app [app]    # Push to your machine's branch
 drifters pull-app [app]              # Pull from main
 drifters pull-app [app] --from mac01 # Pull from a specific machine
 drifters pull-app [app] --dry-run    # Preview changes without applying
+```
+
+**Compare changes:**
+```bash
+drifters diff-app [app]              # Show diff in terminal
+drifters diff-app [app] --tool       # Open diffs in external difftool
+drifters diff-app [app] --against m2 # Compare against a specific branch
 ```
 
 **Check status:**
@@ -229,6 +317,28 @@ export SHARED2="value"
 # drifters::exclude::start
 export LOCAL2="path"
 # drifters::exclude::stop
+```
+
+### External Difftool
+
+`diff-app --tool` opens each changed file in your configured `git difftool`. Configure one globally:
+
+```bash
+# Zed
+git config --global diff.tool zed
+git config --global difftool.zed.cmd 'zed --wait --diff "$LOCAL" "$REMOTE"'
+
+# Sublime Merge
+git config --global diff.tool smerge
+
+# VS Code
+git config --global diff.tool vscode
+```
+
+For conflict resolution during `merge-app`, also set a mergetool:
+
+```bash
+git config --global merge.tool smerge
 ```
 
 ### Debugging

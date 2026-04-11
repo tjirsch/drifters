@@ -25,8 +25,11 @@ pub fn pull_command(
     let repo_guard = EphemeralRepoGuard::new_on_branch(&config, &source_branch)?;
     let repo_path = repo_guard.path();
 
-    // Guard: detect stale machine IDs
-    crate::cli::common::verify_machine_registration(&config, repo_path)?;
+    // Guard: detect stale machine IDs (only relevant when pulling from main;
+    // --from pulls from a specific machine branch where machines.toml may not exist)
+    if from.is_none() {
+        crate::cli::common::verify_machine_registration(&config, repo_path)?;
+    }
 
     // Load sync rules (from main via git show, since rules always live on main)
     let rules = load_rules_from_branch(repo_path, "main")?;
@@ -214,7 +217,6 @@ fn load_rules_from_branch(
 /// Show a simple diff between two strings.
 fn show_simple_diff(old: &str, new: &str) {
     use similar::TextDiff;
-    const MAX_DISPLAY: usize = 40;
 
     let diff = TextDiff::from_lines(old, new);
 
@@ -222,19 +224,17 @@ fn show_simple_diff(old: &str, new: &str) {
         .iter_all_changes()
         .filter(|c| c.tag() != similar::ChangeTag::Equal)
         .collect();
-    let total = changed_lines.len();
 
-    for change in changed_lines.iter().take(MAX_DISPLAY) {
+    if changed_lines.is_empty() {
+        println!("    (no changes)");
+        return;
+    }
+
+    for change in &changed_lines {
         match change.tag() {
             similar::ChangeTag::Delete => print!("    - {}", change),
             similar::ChangeTag::Insert => print!("    + {}", change),
             similar::ChangeTag::Equal => {}
         }
-    }
-
-    if total == 0 {
-        println!("    (no changes)");
-    } else if total > MAX_DISPLAY {
-        println!("    ... ({} more change(s) not shown)", total - MAX_DISPLAY);
     }
 }

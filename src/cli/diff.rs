@@ -2,8 +2,9 @@ use crate::config::{resolve_fileset, LocalConfig, SyncRules};
 use crate::error::Result;
 use crate::git::{read_app_files, EphemeralRepoGuard};
 use std::fs;
+use std::path::Path;
 
-pub fn show_diff(app_name: Option<String>, against: Option<String>) -> Result<()> {
+pub fn show_diff(app_name: Option<String>, against: Option<String>, tool: bool) -> Result<()> {
     log::info!("Showing diff");
 
     // Load local config
@@ -85,10 +86,16 @@ pub fn show_diff(app_name: Option<String>, against: Option<String>) -> Result<()
 
             // Show diff if different
             if local_content != remote_content {
-                println!("\n{} ({})", filename, local_path.display());
-                println!("{}", "-".repeat(60));
-                show_file_diff(&local_content, &remote_content);
                 total_changes += 1;
+
+                if tool {
+                    println!("\nOpening difftool for {} ...", filename);
+                    open_in_difftool(&remote_content, &local_path, filename)?;
+                } else {
+                    println!("\n{} ({})", filename, local_path.display());
+                    println!("{}", "-".repeat(60));
+                    show_file_diff(&local_content, &remote_content);
+                }
             }
         }
     }
@@ -104,7 +111,7 @@ pub fn show_diff(app_name: Option<String>, against: Option<String>) -> Result<()
     Ok(())
 }
 
-fn load_rules_from_main(repo_path: &std::path::Path) -> Result<SyncRules> {
+fn load_rules_from_main(repo_path: &Path) -> Result<SyncRules> {
     let output = std::process::Command::new("git")
         .arg("-C")
         .arg(repo_path)
@@ -124,29 +131,56 @@ fn show_file_diff(old: &str, new: &str) {
     use similar::TextDiff;
 
     let diff = TextDiff::from_lines(old, new);
-    let mut shown_lines = 0;
-    const MAX_LINES: usize = 100;
 
     for change in diff.iter_all_changes() {
-        if shown_lines >= MAX_LINES {
-            println!("  ... (more changes, {} lines total)", diff.iter_all_changes().count());
-            break;
-        }
-
         match change.tag() {
             similar::ChangeTag::Delete => {
                 print!("  \x1b[31m-{}\x1b[0m", change);
-                shown_lines += 1;
             }
             similar::ChangeTag::Insert => {
                 print!("  \x1b[32m+{}\x1b[0m", change);
-                shown_lines += 1;
             }
             similar::ChangeTag::Equal => {
-                if shown_lines > 0 && shown_lines < MAX_LINES - 3 {
-                    print!("   {}", change);
-                }
+                print!("   {}", change);
             }
         }
     }
+}
+
+/// Open a diff in the user's configured git difftool.
+///
+/// Writes the remote content to a temp file and invokes `git difftool --no-index`
+/// so it works outside a git repo context. The remote (branch) version is shown
+/// on the left, the local file on the right.
+fn open_in_difftool(
+    remote_content: &str,
+    local_path: &Path,
+    filename: &str,
+) -> Result<()> {
+    let tmp_dir = std::env::temp_dir().join("drifters-diff");
+    fs::create_dir_all(&tmp_dir)?;
+    let remote_path = tmp_dir.join(format!("(remote) {}", filename));
+    fs::write(&remote_path, remote_content)?;
+
+    let status = std::process::Command::new("git")
+        .args([
+            "difftool",
+            "--no-index",
+            "--no-prompt",
+        ])
+        .arg(&remote_path)
+        .arg(local_path)
+        .status()?;
+
+    // Clean up temp file
+    let _ = fs::remove_file(&remote_path);
+
+    if !status.success() {
+        eprintln!(
+            "  difftool exited with status {} for {}",
+            status, filename
+        );
+    }
+
+    Ok(())
 }
